@@ -1,0 +1,53 @@
+{
+  "walking_route": {
+    "route_id": "fixture-walk-001",
+    "source_id": "fixture.transport.routes",
+    "mode": "walking",
+    "origin_name": "起点 A",
+    "destination_name": "目的地 B",
+    "distance_m": 1200,
+    "duration_seconds": 900,
+    "duration_basis": "typical_estimate",
+    "steps": [
+      {
+        "instruction": "沿测试路段向东步行",
+        "step_mode": "walking",
+        "distance_m": 1200,
+        "duration_seconds": 900,
+        "start_latitude": 31.2,
+        "start_longitude": 121.4,
+        "end_latitude": 31.21,
+        "end_longitude": 121.41,
+        "coordinate_system": "WGS84"
+      }
+    ],
+    "geometry_points": [
+      {"latitude": 31.2, "longitude": 121.4, "coordinate_system": "WGS84"},
+      {"latitude": 31.21, "longitude": 121.41, "coordinate_system": "WGS84"}
+    ],
+    "fare_amount_fen": null,
+    "currency_code": "CNY",
+    "fare_basis": "unknown",
+    "fare_evidence_state": "unknown",
+    "evidence_state": "demo",
+    "missing_fields": ["fare_amount_fen", "fare_basis"]
+  },
+  "taxi_estimate": {
+    "route_id": "fixture-taxi-001",
+    "source_id": "fixture.transport.routes",
+    "mode": "taxi",
+    "origin_name": "起点 A",
+    "destination_name": "目的地 B",
+    "distance_m": null,
+    "duration_seconds": null,
+    "duration_basis": "unknown",
+    "steps": [],
+    "geometry_points": null,
+    "fare_amount_fen": 3500,
+    "currency_code": "CNY",
+    "fare_basis": "meter_estimate",
+    "fare_evidence_state": "estimate",
+    "evidence_state": "demo",
+    "missing_fields": ["distance_m", "duration_seconds", "steps", "geometry_points", "duration_basis"]
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "full": {
+    "provider_id": "fixture.weather",
+    "state": "demo",
+    "retrieved_at": "2026-10-27T00:00:00Z",
+    "source": {
+      "source_id": "fixture.weather",
+      "display_name": "Weather fixture",
+      "url": "https://fixture.example/weather",
+      "retrieved_at": "2026-10-27T00:00:00Z",
+      "evidence_state": "demo"
+    },
+    "location": {
+      "city_id": "shanghai",
+      "requested_latitude": 31.222222,
+      "requested_longitude": 121.458056,
+      "resolved_latitude": 31.25,
+      "resolved_longitude": 121.5,
+      "elevation_m": 4.0
+    },
+    "days": [
+      {
+        "date": "2026-10-27",
+        "weather_code": 1,
+        "temperature_max_c": 20.0,
+        "temperature_min_c": 13.0,
+        "precipitation_probability_max_pct": 10.0,
+        "precipitation_sum_mm": 0.0,
+        "wind_speed_10m_max_kmh": 15.0
+      },
+      {
+        "date": "2026-10-28",
+        "weather_code": 3,
+        "temperature_max_c": 19.0,
+        "temperature_min_c": 12.0,
+        "precipitation_probability_max_pct": 40.0,
+        "precipitation_sum_mm": 1.2,
+        "wind_speed_10m_max_kmh": 18.0
+      },
+      {
+        "date": "2026-10-29",
+        "weather_code": 61,
+        "temperature_max_c": 17.0,
+        "temperature_min_c": 11.0,
+        "precipitation_probability_max_pct": 70.0,
+        "precipitation_sum_mm": 5.0,
+        "wind_speed_10m_max_kmh": null
+      }
+    ]
+  },
+  "partial": {
+    "provider_id": "fixture.weather",
+    "state": "demo",
+    "retrieved_at": "2026-10-27T00:00:00Z",
+    "source": {
+      "source_id": "fixture.weather",
+      "display_name": "Weather fixture",
+      "url": "https://fixture.example/weather",
+      "retrieved_at": "2026-10-27T00:00:00Z",
+      "evidence_state": "demo"
+    },
+    "location": {
+      "city_id": "hangzhou",
+      "requested_latitude": 30.29365,
+      "requested_longitude": 120.161419
+    },
+    "days": [
+      {
+        "date": "2026-10-27",
+        "weather_code": 0,
+        "temperature_max_c": 21.0,
+        "temperature_min_c": 14.0,
+        "precipitation_probability_max_pct": 0.0,
+        "precipitation_sum_mm": 0.0,
+        "wind_speed_10m_max_kmh": 10.0
+      },
+      {
+        "date": "2026-10-29",
+        "weather_code": 999,
+        "temperature_max_c": null,
+        "temperature_min_c": null,
+        "precipitation_probability_max_pct": null,
+        "precipitation_sum_mm": null,
+        "wind_speed_10m_max_kmh": null
+      }
+    ]
+  }
+}

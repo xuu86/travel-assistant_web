@@ -1,0 +1,97 @@
+{
+  "direct_flight": {
+    "offer_id": "fixture-flight-001",
+    "source_id": "fixture.transport.fares",
+    "mode": "flight",
+    "travel_date": "2026-11-10",
+    "segments": [
+      {
+        "segment_id": "flight-segment-001",
+        "origin_name": "上海虹桥",
+        "destination_name": "杭州萧山",
+        "departure_at": "2026-11-10T08:00:00+08:00",
+        "arrival_at": "2026-11-10T09:10:00+08:00",
+        "departure_timezone": "Asia/Shanghai",
+        "arrival_timezone": "Asia/Shanghai",
+        "service_number": "FAKE-FL001",
+        "operating_carrier": "Synthetic Air",
+        "transfer_place": null
+      }
+    ],
+    "service_number": "FAKE-FL001",
+    "departure_at": "2026-11-10T08:00:00+08:00",
+    "arrival_at": "2026-11-10T09:10:00+08:00",
+    "departure_timezone": "Asia/Shanghai",
+    "arrival_timezone": "Asia/Shanghai",
+    "origin_name": "上海虹桥",
+    "destination_name": "杭州萧山",
+    "price_fen": 128000,
+    "currency_code": "CNY",
+    "price_basis": "per_passenger",
+    "price_scope": "entire_journey",
+    "passenger_count": 2,
+    "included_charges": [
+      {
+        "charge_type": "tax",
+        "display_name": "税费",
+        "inclusion_state": "included",
+        "amount_fen": 0,
+        "currency_code": "CNY",
+        "amount_basis": "per_passenger"
+      }
+    ],
+    "availability": "unknown",
+    "remaining_seats": null,
+    "evidence_state": "demo",
+    "missing_fields": ["remaining_seats", "availability"]
+  },
+  "rail_transfer": {
+    "offer_id": "fixture-rail-001",
+    "source_id": "fixture.transport.fares",
+    "mode": "rail",
+    "travel_date": "2026-11-10",
+    "segments": [
+      {
+        "segment_id": "rail-segment-001",
+        "origin_name": "上海虹桥",
+        "destination_name": "苏州北",
+        "departure_at": "2026-11-10T09:00:00+08:00",
+        "arrival_at": "2026-11-10T09:30:00+08:00",
+        "departure_timezone": "Asia/Shanghai",
+        "arrival_timezone": "Asia/Shanghai",
+        "service_number": "G-FAKE-101",
+        "operating_carrier": null,
+        "transfer_place": null
+      },
+      {
+        "segment_id": "rail-segment-002",
+        "origin_name": "苏州北",
+        "destination_name": "杭州东",
+        "departure_at": "2026-11-10T10:15:00+08:00",
+        "arrival_at": "2026-11-10T11:15:00+08:00",
+        "departure_timezone": "Asia/Shanghai",
+        "arrival_timezone": "Asia/Shanghai",
+        "service_number": "G-FAKE-202",
+        "operating_carrier": null,
+        "transfer_place": "苏州北"
+      }
+    ],
+    "service_number": null,
+    "departure_at": "2026-11-10T09:00:00+08:00",
+    "arrival_at": "2026-11-10T11:15:00+08:00",
+    "departure_timezone": "Asia/Shanghai",
+    "arrival_timezone": "Asia/Shanghai",
+    "origin_name": "上海虹桥",
+    "destination_name": "杭州东",
+    "price_fen": 36000,
+    "currency_code": "CNY",
+    "price_basis": "party_total",
+    "price_scope": "entire_journey",
+    "passenger_count": 2,
+    "included_charges": [],
+    "availability": "unknown",
+    "remaining_seats": null,
+    "evidence_state": "demo",
+    "missing_fields": ["remaining_seats", "availability", "included_charges"]
+  }
+}

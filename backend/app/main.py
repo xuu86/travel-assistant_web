@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+import logging
 from uuid import UUID
 
 from fastapi import FastAPI, Request
@@ -18,16 +18,7 @@ from app.modules.foundation.router import router as foundation_router
 from app.modules.transport.router import router as transport_router
 from app.modules.weather.router import router as weather_router
 
-
-class SafeFastAPI(FastAPI):
-    """Prevent unhandled HTTP exceptions from escaping to server-level logs."""
-
-    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        try:
-            await super().__call__(scope, receive, send)
-        except Exception:
-            if scope["type"] != "http":
-                raise
+_logger = logging.getLogger("app.errors")
 
 
 def _request_id(request: Request) -> UUID | None:
@@ -60,7 +51,7 @@ def _public_error_response(
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings if settings is not None else get_settings()
-    application = SafeFastAPI(title="行旅智能旅游助手 API", version="0.1.0", debug=False)
+    application = FastAPI(title="行旅智能旅游助手 API", version="0.1.0", debug=False)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(app_settings.allowed_origins),
@@ -115,6 +106,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @application.exception_handler(Exception)
     async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
+        _logger.error(
+            "unhandled_request_error",
+            extra={
+                "request_id": str(_request_id(request)) if _request_id(request) else None,
+                "route_name": getattr(request.scope.get("route"), "name", "unmatched"),
+                "exception_type": type(exc).__name__,
+            },
+        )
         return _public_error_response(
             request,
             code=ErrorCode.INTERNAL_ERROR,

@@ -121,4 +121,15 @@ describe("transport API clients", () => {
     expect(invalidResult).toMatchObject({ code: "TRANSPORT_RESPONSE_INVALID", status: 200 });
     expect((invalidResult as Error).message).not.toContain("secret");
   });
+
+  it("rejects malformed result items rather than trusting the TypeScript type", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response({
+      state: "live", request_id: "x", queried_at: "now", message: "", items: [{}], sources: [],
+    }));
+
+    await expect(fetchTransportFares(fareQuery, fetchMock)).rejects.toMatchObject({
+      code: "TRANSPORT_RESPONSE_INVALID",
+      status: 200,
+    });
+  });
 });

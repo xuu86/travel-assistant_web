@@ -97,7 +97,7 @@ def test_unexpected_exception_is_sanitized_and_logs_only_request_metadata(caplog
 
     app.add_api_route("/__test__/unexpected", unexpected_failure, methods=["GET"])
     caplog.set_level(logging.INFO, logger="app.request")
-    response = TestClient(app).get("/__test__/unexpected")
+    response = TestClient(app, raise_server_exceptions=False).get("/__test__/unexpected")
 
     assert response.status_code == 500
     assert response.json()["code"] == ErrorCode.INTERNAL_ERROR

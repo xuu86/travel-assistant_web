@@ -353,7 +353,7 @@ def test_route_estimate_and_missing_geometry_are_preserved_without_upgrade() -> 
     assert result.items[0].evidence_state is EvidenceState.DEMO
 
 
-def test_unexpected_provider_error_is_sanitized_to_unavailable() -> None:
+def test_unexpected_provider_error_is_sanitized_and_logged_without_private_text(caplog) -> None:
     class BrokenFareProvider:
         def search_fares(self, query, *, request_id):
             raise RuntimeError("secret-token private coordinates provider html")
@@ -366,6 +366,8 @@ def test_unexpected_provider_error_is_sanitized_to_unavailable() -> None:
     assert result.items == []
     assert result.error is not None
     assert "secret-token" not in result.error.message
+    assert "transport_provider_failure" in caplog.text
+    assert "secret-token" not in caplog.text
 
 
 def test_invalid_provider_result_is_revalidated_and_not_returned() -> None:

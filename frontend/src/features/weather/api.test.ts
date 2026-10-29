@@ -103,4 +103,13 @@ describe("fetchWeatherForecast", () => {
     });
     expect((error as Error).message).not.toContain("not-json");
   });
+
+  it("rejects malformed success payloads before they reach the UI", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response({ state: "live", items: [] }));
+
+    await expect(fetchWeatherForecast(query, fetchMock)).rejects.toMatchObject({
+      code: "WEATHER_RESPONSE_INVALID",
+      status: 200,
+    });
+  });
 });

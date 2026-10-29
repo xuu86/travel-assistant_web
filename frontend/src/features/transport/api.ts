@@ -50,10 +50,50 @@ function isPublicError(value: unknown): value is TransportPublicError {
   );
 }
 
-function isResultEnvelope(value: unknown): value is { state: string; request_id: string } {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isResultEnvelope(value: unknown): value is { state: string; request_id: string; items: unknown[]; sources: unknown[]; message: string; queried_at: string } {
   if (!value || typeof value !== "object") return false;
-  const candidate = value as { state?: unknown; request_id?: unknown };
-  return typeof candidate.state === "string" && typeof candidate.request_id === "string";
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.state === "string" &&
+    typeof candidate.request_id === "string" &&
+    typeof candidate.queried_at === "string" &&
+    typeof candidate.message === "string" &&
+    Array.isArray(candidate.items) &&
+    Array.isArray(candidate.sources)
+  );
+}
+
+function hasValidSources(value: Record<string, unknown>): boolean {
+  return (value.sources as unknown[]).every((source) =>
+    isRecord(source) && typeof source.source_id === "string" &&
+    typeof source.display_name === "string" && typeof source.retrieved_at === "string",
+  );
+}
+
+function isFareResponse(value: unknown): value is FareResponse {
+  if (!isResultEnvelope(value) || !hasValidSources(value)) return false;
+  return value.items.every((offer) =>
+    isRecord(offer) && typeof offer.offer_id === "string" &&
+    typeof offer.source_id === "string" && ["flight", "rail"].includes(String(offer.mode)) &&
+    typeof offer.travel_date === "string" && Array.isArray(offer.segments) &&
+    typeof offer.origin_name === "string" && typeof offer.destination_name === "string" &&
+    typeof offer.price_basis === "string" && typeof offer.evidence_state === "string",
+  );
+}
+
+function isRouteResponse(value: unknown): value is RouteResponse {
+  if (!isResultEnvelope(value) || !hasValidSources(value)) return false;
+  return value.items.every((route) =>
+    isRecord(route) && typeof route.route_id === "string" &&
+    typeof route.source_id === "string" && ["transit", "walking", "taxi"].includes(String(route.mode)) &&
+    typeof route.origin_name === "string" && typeof route.destination_name === "string" &&
+    typeof route.duration_basis === "string" && typeof route.fare_basis === "string" &&
+    typeof route.evidence_state === "string" && Array.isArray(route.steps),
+  );
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -91,7 +131,8 @@ async function postTransport<T>(
   const body = await readJson(response);
 
   if (!response.ok) throw responseError(response, body);
-  if (!isResultEnvelope(body)) {
+  const valid = path === "/api/transport/fares/search" ? isFareResponse(body) : isRouteResponse(body);
+  if (!valid) {
     throw new TransportApiError("交通服务返回了无法识别的结果。", {
       code: "TRANSPORT_RESPONSE_INVALID",
       requestId: response.headers.get("x-request-id"),

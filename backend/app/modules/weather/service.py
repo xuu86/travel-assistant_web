@@ -6,6 +6,7 @@ from uuid import UUID
 
 from app.core.cities import get_city
 from app.core.contracts import Coverage, DateRange, ErrorCode, PublicError, ResultState
+from app.core.errors import ServiceError
 from app.modules.weather.contracts import (
     WeatherLocationMetadata,
     WeatherQuery,
@@ -51,7 +52,8 @@ class WeatherService:
 
     def forecast(self, query: WeatherQuery, *, request_id: UUID) -> WeatherResult:
         city = get_city(query.city_id)
-        assert city is not None, "WeatherQuery validates registered city IDs."
+        if city is None:
+            raise ServiceError(ErrorCode.VALIDATION_ERROR, retryable=False)
         location = WeatherLocationMetadata(
             city_id=city.id,
             requested_latitude=city.center.latitude,

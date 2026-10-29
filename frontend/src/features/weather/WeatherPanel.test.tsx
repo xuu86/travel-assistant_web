@@ -71,6 +71,22 @@ describe("WeatherPanel", () => {
     expect(screen.getByText(/测试 fixture/)).toBeVisible();
   });
 
+  it("labels WMO codes supported by the backend mapping", () => {
+    render(<WeatherPanel cityName="上海" state={{
+      status: "success",
+      data: {
+        ...partialData,
+        items: [{
+          date: "2026-10-27", weather_code: 96, temperature_max_c: 20, temperature_min_c: 13,
+          precipitation_probability_max_pct: 50, precipitation_sum_mm: 2,
+          wind_speed_10m_max_kmh: 10, missing_fields: [],
+        }],
+      },
+    }} />);
+
+    expect(screen.getByRole("heading", { name: "雷暴伴小冰雹" })).toBeVisible();
+  });
+
   it.each([
     ["rate_limited", "查询暂受额度限制"],
     ["policy_unavailable", "服务权限暂不可用"],

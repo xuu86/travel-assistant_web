@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TypeVar
@@ -61,6 +62,7 @@ _RESULT_MESSAGES: dict[ResultState, str] = {
     ResultState.DEMO: "当前为测试 fixture 结果，不代表实时班次、票价或路线。",
 }
 _T = TypeVar("_T", FareResult, RouteResult)
+_logger = logging.getLogger("app.transport")
 
 
 class TransportService:
@@ -92,7 +94,8 @@ class TransportService:
             return self._failure_result(
                 FareResult, status=exc.status, request_id=request_id
             )
-        except Exception:
+        except Exception as exc:
+            _log_provider_failure("fares", request_id, exc)
             return self._failure_result(
                 FareResult, status="unavailable", request_id=request_id
             )
@@ -112,7 +115,8 @@ class TransportService:
             return self._failure_result(
                 RouteResult, status=exc.status, request_id=request_id
             )
-        except Exception:
+        except Exception as exc:
+            _log_provider_failure("route", request_id, exc)
             return self._failure_result(
                 RouteResult, status="unavailable", request_id=request_id
             )
@@ -181,3 +185,14 @@ class TransportService:
                 request_id=request_id,
             ),
         )
+
+
+def _log_provider_failure(operation: str, request_id: UUID, error: Exception) -> None:
+    _logger.error(
+        "transport_provider_failure",
+        extra={
+            "operation": operation,
+            "request_id": str(request_id),
+            "exception_type": type(error).__name__,
+        },
+    )

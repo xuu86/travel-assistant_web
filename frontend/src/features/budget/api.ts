@@ -23,6 +23,21 @@ function isPublicError(value: unknown): value is BudgetPublicError {
   return typeof candidate.message === "string" && typeof candidate.code === "string";
 }
 
+function isBudgetResponse(value: unknown): value is BudgetResponse {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const result = value as Record<string, unknown>;
+  const nullableAmount = (amount: unknown) => amount === null ||
+    (typeof amount === "number" && Number.isSafeInteger(amount));
+  return typeof result.trip_id === "string" && typeof result.request_id === "string" &&
+    ["unconfigured", "needs_review", "within_budget", "over_budget"].includes(String(result.budget_state)) &&
+    ["complete", "needs_review"].includes(String(result.completeness)) &&
+    nullableAmount(result.total_budget_fen) && nullableAmount(result.paid_total_fen) &&
+    nullableAmount(result.remaining_to_allocate_fen) && nullableAmount(result.expected_balance_fen) &&
+    nullableAmount(result.minimum_over_budget_fen) && nullableAmount(result.reserve_fen) &&
+    typeof result.known_unpaid_total_fen === "number" && Number.isSafeInteger(result.known_unpaid_total_fen) &&
+    typeof result.reserve_reminder === "boolean";
+}
+
 export async function calculateBudget(
   snapshot: BudgetSnapshot,
   fetchImpl: typeof fetch = fetch,
@@ -47,5 +62,8 @@ export async function calculateBudget(
       error?.request_id ?? response.headers.get("x-request-id"),
     );
   }
-  return body as BudgetResponse;
+  if (!isBudgetResponse(body)) {
+    throw new BudgetApiError("预算服务返回了无法识别的结果。", response.headers.get("x-request-id"));
+  }
+  return body;
 }

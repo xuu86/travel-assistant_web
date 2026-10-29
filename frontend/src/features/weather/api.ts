@@ -42,6 +42,37 @@ function isPublicError(value: unknown): value is WeatherPublicError {
   );
 }
 
+const RESULT_STATES = new Set([
+  "live", "partial", "empty", "demo", "unconfigured", "no_coverage",
+  "rate_limited", "unavailable", "policy_unavailable",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isWeatherResponse(value: unknown): value is ForecastResponse {
+  if (!isRecord(value) || !RESULT_STATES.has(String(value.state))) return false;
+  if (
+    typeof value.request_id !== "string" || typeof value.queried_at !== "string" ||
+    typeof value.message !== "string" || !Array.isArray(value.items) ||
+    !Array.isArray(value.sources) || !isRecord(value.location)
+  ) return false;
+
+  const finiteOrNull = (item: unknown) => item === null || (typeof item === "number" && Number.isFinite(item));
+  return value.items.every((day: unknown) => {
+    if (!isRecord(day) || typeof day.date !== "string") return false;
+    return [
+      "weather_code", "temperature_max_c", "temperature_min_c",
+      "precipitation_probability_max_pct", "precipitation_sum_mm", "wind_speed_10m_max_kmh",
+    ].every((field) => day[field] === undefined || finiteOrNull(day[field]));
+  }) && value.sources.every((source: unknown) =>
+    isRecord(source) && typeof source.display_name === "string" && typeof source.retrieved_at === "string",
+  ) && typeof value.location.city_id === "string" &&
+    typeof value.location.requested_latitude === "number" &&
+    typeof value.location.requested_longitude === "number";
+}
+
 async function readJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -75,7 +106,14 @@ export async function fetchWeatherForecast(
     });
   }
 
-  return body as ForecastResponse;
+  if (!isWeatherResponse(body)) {
+    throw new WeatherApiError("天气服务返回了无法识别的结果。", {
+      code: "WEATHER_RESPONSE_INVALID",
+      requestId: response.headers.get("x-request-id"),
+      status: response.status,
+    });
+  }
+  return body;
 }
 
 export type WeatherRequestState =

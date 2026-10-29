@@ -195,4 +195,48 @@ export function WeatherPanel({ cityName, state }: WeatherPanelProps) {
   );
 }
 
+type WeatherSignalCardProps = {
+  cityName: string;
+  date: string;
+  state: WeatherPanelState;
+};
+
+export function WeatherSignalCard({ cityName, date, state }: WeatherSignalCardProps) {
+  const day = state.status === "success"
+    ? state.data.items?.find((item) => item.date === date)
+    : undefined;
+  const title = state.status === "loading"
+    ? "正在查询当天的天气…"
+    : state.status === "error"
+      ? "当天天气暂不可用"
+      : state.status === "unconfigured"
+        ? "等待选择目的城市"
+        : day
+          ? dayLabel(day)
+          : "当天暂无预报";
+
+  return (
+    <aside className="hero__signal" aria-label={`${cityName}当天的天气摘要`} aria-busy={state.status === "loading"}>
+      <div className="signal-card__topline">
+        <span className="signal-card__label">{cityName} · 今日天气</span>
+        <span className="signal-card__index" aria-hidden="true">{state.status === "success" ? (state.data.state === "demo" ? "测试" : "LIVE") : "01"}</span>
+      </div>
+      <p className="signal-card__quote" aria-live="polite">{title}</p>
+      <p className="signal-card__date">{formatDate(date)} · 按北京时间</p>
+      <div className="signal-card__rows">
+        <div><span>最高 / 最低</span><strong>{metric(day?.temperature_max_c, "°")} / {metric(day?.temperature_min_c, "°")}</strong></div>
+        <div><span>降水量 / 概率</span><strong>{metric(day?.precipitation_sum_mm, " mm")} / {metric(day?.precipitation_probability_max_pct, "%")}</strong></div>
+        <div><span>最大风速</span><strong>{metric(day?.wind_speed_10m_max_kmh, " km/h")}</strong></div>
+      </div>
+      <p className="signal-card__note">
+        {state.status === "error" ? state.error.message : day
+          ? "天气数据来自当日预报；暂无的指标不会以零值代替。"
+          : state.status === "loading"
+            ? "正在读取所选城市的当天预报。"
+            : "当天数据暂缺时会明确显示，不以其他日期或演示数据替代。"}
+      </p>
+    </aside>
+  );
+}
+
 

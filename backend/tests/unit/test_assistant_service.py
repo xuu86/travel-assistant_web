@@ -79,6 +79,18 @@ def test_service_parses_reply_without_returning_client_evidence_sources() -> Non
     assert provider.calls[0][-1] == {"role": "user", "content": "请帮我安排轻松一点"}
 
 
+def test_provider_prompt_names_patch_fields_and_budget_unit() -> None:
+    provider = FakeAssistantProvider(content='{"reply":"收到。","patch":null}')
+    service = AssistantService(configured_settings(), provider=provider)
+
+    run(service, "请修改预算")
+    prompt = provider.calls[0][0]["content"]
+
+    assert "budget_fen" in prompt
+    assert "不得使用 budget 等别名" in prompt
+    assert "2000 元填写 200000" in prompt
+
+
 def test_service_marks_client_evidence_unverified_and_hides_source_identifiers() -> None:
     provider = FakeAssistantProvider(
         content='{"reply":"可先核实天气，再安排户外活动。","patch":null}'

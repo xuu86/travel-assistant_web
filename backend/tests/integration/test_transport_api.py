@@ -142,6 +142,21 @@ def test_route_provider_failure_is_an_empty_public_state_with_matching_request_i
     assert response.headers["x-request-id"] == body["request_id"]
 
 
+def test_fare_search_forwards_optional_child_count_to_provider() -> None:
+    provider = FakeFareProvider(result=fare_fixture())
+    payload = fare_query_payload()
+    payload["passenger_count"] = 3
+    payload["child_count"] = 1
+
+    response = make_client(fare_provider=provider).post(
+        "/api/transport/fares/search", json=payload
+    )
+
+    assert response.status_code == 200
+    assert provider.calls[0].query.passenger_count == 3
+    assert provider.calls[0].query.child_count == 1
+
+
 def test_invalid_transport_body_is_rejected_before_provider_call() -> None:
     provider = FakeFareProvider(result=fare_fixture())
     payload = fare_query_payload()

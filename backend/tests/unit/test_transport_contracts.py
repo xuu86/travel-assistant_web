@@ -103,6 +103,33 @@ def test_fare_query_requires_explicit_date_and_keeps_target_travel_day() -> None
 
     assert query.travel_date == date(2026, 11, 10)
     assert query.passenger_count == 2
+    assert query.child_count is None
+
+
+def test_fare_query_accepts_optional_child_count_with_total_passengers() -> None:
+    query = FareQuery(
+        origin=PlaceRef(display_name="上海虹桥"),
+        destination=PlaceRef(display_name="杭州东"),
+        mode="rail",
+        travel_date=date(2026, 11, 10),
+        passenger_count=3,
+        child_count=1,
+    )
+    assert query.passenger_count == 3
+    assert query.child_count == 1
+
+
+@pytest.mark.parametrize("child_count", [-1, 2, True, 1.5])
+def test_fare_query_rejects_invalid_child_count(child_count: object) -> None:
+    with pytest.raises(ValidationError):
+        FareQuery(
+            origin=PlaceRef(display_name="上海虹桥"),
+            destination=PlaceRef(display_name="杭州东"),
+            mode="rail",
+            travel_date=date(2026, 11, 10),
+            passenger_count=1,
+            child_count=child_count,
+        )
 
 
 @pytest.mark.parametrize(

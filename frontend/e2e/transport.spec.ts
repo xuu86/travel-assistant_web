@@ -127,7 +127,7 @@ test("transport starts without a request and keeps synthetic rail details explic
   await fillPlaces(page, "测试站 A", "测试站 C");
   await page.getByLabel(/交通方式/).selectOption("rail");
   await page.getByLabel(/目标出行日期/).fill("2026-11-10");
-  await page.getByLabel(/乘客人数/).fill("2");
+  await page.getByLabel(/成人数量/).fill("2");
   await page.getByRole("button", { name: "查询班次" }).click();
   await expect(page.getByRole("status")).toContainText("服务尚未配置");
   await expect(page.getByRole("article")).toHaveCount(0);
@@ -208,8 +208,9 @@ test("changing fare conditions clears prior data and a slow response cannot over
 
   await enterTransport(page);
   await fillPlaces(page);
+  await page.getByLabel(/交通方式/).selectOption("rail");
   await page.getByLabel(/目标出行日期/).fill("2026-11-10");
-  await page.getByLabel(/乘客人数/).fill("2");
+  await page.getByLabel(/成人数量/).fill("2");
   await page.getByRole("button", { name: "查询班次" }).click();
   await started;
 

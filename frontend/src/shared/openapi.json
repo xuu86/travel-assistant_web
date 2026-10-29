@@ -1036,6 +1036,18 @@
       "FareQuery": {
         "additionalProperties": false,
         "properties": {
+          "child_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Child Count"
+          },
           "destination": {
             "$ref": "#/components/schemas/PlaceRef"
           },

@@ -28,6 +28,26 @@ const mockForecast = {
   },
 } as const;
 
+const unconfiguredForecast = {
+  ...mockForecast,
+  state: "unconfigured",
+  items: [],
+  sources: [],
+  message: "天气服务尚未配置。",
+  coverage: null,
+  error: { code: "UNCONFIGURED", message: "天气服务尚未配置。", retryable: false, request_id: "weather-unconfigured" },
+};
+
+function stubWeatherResponse(
+  fetchMock: ReturnType<typeof vi.fn<typeof fetch>>,
+  response: unknown = mockForecast,
+) {
+  fetchMock.mockImplementation(async () => new Response(JSON.stringify(response), {
+    status: 200, headers: { "content-type": "application/json" },
+  }));
+  vi.stubGlobal("fetch", fetchMock);
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -45,7 +65,7 @@ describe("App weather query", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "先选一座目的城市" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "先选好目的地与出发地" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "目的城市" })).toHaveValue("");
     expect(screen.queryByRole("navigation", { name: "旅行工具" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "开始规划" }));
@@ -54,12 +74,41 @@ describe("App weather query", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("offers exactly five registered destination id/name options without a default", () => {
+  it("offers the current location by default and registered or custom departure places", () => {
     render(<App />);
-    expect(screen.getAllByRole("option").map((option) => [option.getAttribute("value"), option.textContent])).toEqual([
+    expect(screen.getByRole("combobox", { name: "目的城市" }).querySelectorAll("option").length).toBe(6);
+    expect(Array.from(screen.getByRole("combobox", { name: "目的城市" }).querySelectorAll("option")).map((option) => [option.getAttribute("value"), option.textContent])).toEqual([
       ["", "请选择"], ["shanghai", "上海"], ["suzhou", "苏州"], ["wuxi", "无锡"],
       ["jiaxing", "嘉兴"], ["hangzhou", "杭州"],
     ]);
+    expect(screen.getByRole("combobox", { name: "出发地点" })).toHaveValue("current");
+    expect(screen.getByRole("option", { name: "自定义地点" })).toBeInTheDocument();
+  });
+
+  it("uses browser coordinates as the default origin when location permission is granted", () => {
+    vi.stubGlobal("navigator", Object.assign(Object.create(navigator), {
+      geolocation: {
+        getCurrentPosition: (success: PositionCallback) => success({
+          coords: { latitude: 30.25, longitude: 120.16 },
+        } as GeolocationPosition),
+      },
+    }));
+    render(<App />);
+    activateDestination("hangzhou");
+    expect(screen.getByText("当前位置", { selector: ".workspace-origin" })).toBeVisible();
+    expect(screen.getByText("定位完成")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "交通" }));
+    expect(screen.getByRole("textbox", { name: /起点/ })).toHaveValue("当前位置");
+  });
+
+  it("supports a custom departure place before entering the workspace", () => {
+    render(<App />);
+    fireEvent.change(screen.getByRole("combobox", { name: "出发地点" }), { target: { value: "custom" } });
+    fireEvent.change(screen.getByLabelText("自定义出发地点"), { target: { value: "杭州东站" } });
+    activateDestination("hangzhou");
+    expect(screen.getByText("杭州东站", { selector: ".workspace-origin" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "交通" }));
+    expect(screen.getByRole("textbox", { name: /起点/ })).toHaveValue("杭州东站");
   });
 
   it.each([["shanghai", "上海"], ["suzhou", "苏州"], ["wuxi", "无锡"], ["jiaxing", "嘉兴"], ["hangzhou", "杭州"]])(
@@ -71,27 +120,56 @@ describe("App weather query", () => {
     },
   );
 
-  it("starts without a weather request and clearly labels the unconfigured service", () => {
+  it("automatically requests today's weather after selecting a destination", async () => {
     const fetchMock = vi.fn<typeof fetch>();
-    vi.stubGlobal("fetch", fetchMock);
+    stubWeatherResponse(fetchMock);
     render(<App />);
     activateDestination();
 
     expect(screen.getByRole("heading", { name: "从一座城市，开始规划一段旅程。" })).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("天气服务尚未配置");
+    expect(await screen.findByText("晴")).toBeVisible();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const weatherCall = fetchMock.mock.calls[0];
+    expect(weatherCall[0]).toBe("/api/weather/forecast");
+    expect(JSON.parse(String(weatherCall[1]?.body))).toEqual({
+      city_id: "shanghai", start_date: expect.any(String), end_date: expect.any(String),
+    });
+    expect(JSON.parse(String(weatherCall[1]?.body)).end_date).toBe(JSON.parse(String(weatherCall[1]?.body)).start_date);
     expect(screen.getByText("上海", { selector: ".workspace-destination" })).toBeVisible();
     const startDate = screen.getByLabelText("开始日期").getAttribute("value");
     const endDate = screen.getByLabelText("结束日期").getAttribute("value");
     expect(startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    const startParts = startDate!.split("-").map(Number);
-    const endParts = endDate!.split("-").map(Number);
-    expect(Date.UTC(endParts[0], endParts[1] - 1, endParts[2]) - Date.UTC(startParts[0], startParts[1] - 1, startParts[2])).toBe(2 * 86_400_000);
-    expect(screen.queryByRole("article")).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(endDate).toBe(startDate);
   });
 
-  it("blocks a range longer than 16 local days without calling the API", async () => {
+  it("shows the automatically fetched today's weather inside the field note card", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+      const query = JSON.parse(String(init?.body)) as { start_date: string };
+      const response = {
+        ...mockForecast,
+        items: mockForecast.items.map((day) => ({ ...day, date: query.start_date })),
+        coverage: {
+          requested: { start: query.start_date, end: query.start_date },
+          covered: [{ start: query.start_date, end: query.start_date }],
+          missing: [],
+        },
+      };
+      return new Response(JSON.stringify(response), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    activateDestination("hangzhou");
+
+    const card = screen.getByRole("complementary", { name: "杭州当天的天气摘要" });
+    expect(await screen.findByText("晴", { selector: ".signal-card__quote" })).toBeVisible();
+    expect(card).toHaveTextContent("20° / 13°");
+    expect(card).toHaveTextContent("0 mm / 0%");
+    expect(card).toHaveTextContent("5 km/h");
+  });
+
+  it("blocks a range longer than 16 local days without making an additional API call", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
@@ -102,22 +180,20 @@ describe("App weather query", () => {
     fireEvent.click(screen.getByRole("button", { name: "查询天气" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("单次最多查询 16 个当地日");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("posts the selected city and date range, then labels fixture results honestly", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(mockForecast), {
-      status: 200, headers: { "content-type": "application/json" },
-    }));
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchMock = vi.fn<typeof fetch>();
+    stubWeatherResponse(fetchMock);
     render(<App />);
     activateDestination("hangzhou");
     fireEvent.change(screen.getByLabelText("开始日期"), { target: { value: "2026-10-27" } });
     fireEvent.change(screen.getByLabelText("结束日期"), { target: { value: "2026-10-27" } });
     fireEvent.click(screen.getByRole("button", { name: "查询天气" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(fetchMock).toHaveBeenCalledWith("/api/weather/forecast", expect.objectContaining({
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/weather/forecast", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ city_id: "hangzhou", start_date: "2026-10-27", end_date: "2026-10-27" }),
     }));
@@ -133,13 +209,14 @@ describe("App weather query", () => {
   it("ignores a weather response that arrives after the destination workspace was replaced", async () => {
     let resolveForecast: ((response: Response) => void) | undefined;
     const pendingForecast = new Promise<Response>((resolve) => { resolveForecast = resolve; });
-    const fetchMock = vi.fn<typeof fetch>().mockReturnValue(pendingForecast);
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockReturnValueOnce(pendingForecast)
+      .mockResolvedValueOnce(new Response(JSON.stringify(unconfiguredForecast), {
+        status: 200, headers: { "content-type": "application/json" },
+      }));
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
     activateDestination("hangzhou");
-    fireEvent.change(screen.getByLabelText("开始日期"), { target: { value: "2026-10-27" } });
-    fireEvent.change(screen.getByLabelText("结束日期"), { target: { value: "2026-10-27" } });
-    fireEvent.click(screen.getByRole("button", { name: "查询天气" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "更换目的地" }));
@@ -149,6 +226,7 @@ describe("App weather query", () => {
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("天气服务尚未配置"));
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(screen.getByText("苏州", { selector: ".workspace-destination" })).toBeVisible();
   });
 });
@@ -156,7 +234,7 @@ describe("App weather query", () => {
 describe("App feature navigation", () => {
   it("opens the assistant alongside the existing itinerary view without an automatic request", () => {
     const fetchMock = vi.fn<typeof fetch>();
-    vi.stubGlobal("fetch", fetchMock);
+    stubWeatherResponse(fetchMock, unconfiguredForecast);
     render(<App />);
     activateDestination("hangzhou");
 
@@ -164,16 +242,16 @@ describe("App feature navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "AI 助手" }));
     expect(screen.getByRole("heading", { name: "AI 旅行助手" })).toBeVisible();
     expect(screen.getByRole("button", { name: "AI 助手" })).toHaveAttribute("aria-pressed", "true");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "行程" }));
     expect(screen.getByRole("heading", { name: "旅行行程" })).toBeVisible();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("switches between weather, budget, and transport without triggering API requests", () => {
+  it("switches between weather, budget, and transport without duplicate API requests", async () => {
     const fetchMock = vi.fn<typeof fetch>();
-    vi.stubGlobal("fetch", fetchMock);
+    stubWeatherResponse(fetchMock, unconfiguredForecast);
     render(<App />);
     activateDestination();
 
@@ -181,16 +259,16 @@ describe("App feature navigation", () => {
     expect(screen.getByRole("heading", { name: "交通查询" })).toBeVisible();
     expect(screen.getByRole("status")).toHaveTextContent("交通服务尚未配置");
     expect(screen.getByRole("button", { name: "交通" })).toHaveAttribute("aria-pressed", "true");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "预算" }));
     expect(screen.getByRole("heading", { name: "旅行预算" })).toBeVisible();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "天气" }));
     expect(screen.getByRole("heading", { name: "从一座城市，开始规划一段旅程。" })).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("天气服务尚未配置");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await screen.findByRole("status")).toHaveTextContent("天气服务尚未配置");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("preserves budget drafts across tools and resets them only after confirming a destination change", () => {
@@ -229,7 +307,7 @@ describe("App feature navigation", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "返回选择城市" }));
     fireEvent.click(screen.getByRole("button", { name: "确认返回" }));
-    expect(screen.getByRole("heading", { name: "先选一座目的城市" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "先选好目的地与出发地" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "目的城市" })).toHaveValue("");
     expect(screen.queryByRole("navigation", { name: "旅行工具" })).not.toBeInTheDocument();
   });

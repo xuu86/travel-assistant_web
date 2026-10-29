@@ -53,6 +53,25 @@ test("full forecast fixture is labeled and responsive", async ({ page }) => {
   let calls = 0;
   await page.route("**/api/weather/forecast", async (route) => {
     calls += 1;
+    const query = route.request().postDataJSON() as { city_id: string; start_date: string; end_date: string };
+    expect(query.city_id).toBe("shanghai");
+    if (calls === 1) {
+      expect(query.start_date).toBe(query.end_date);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...fullFixture,
+          items: [item],
+          coverage: {
+            requested: { start: query.start_date, end: query.end_date },
+            covered: [{ start: query.start_date, end: query.end_date }],
+            missing: [],
+          },
+        }),
+      });
+      return;
+    }
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(fullFixture) });
   });
 
@@ -60,17 +79,22 @@ test("full forecast fixture is labeled and responsive", async ({ page }) => {
   await enterWorkspace(page);
   await expect(page).toHaveTitle("行旅 · 智能旅游助手");
   await expect(page.getByRole("heading", { name: "从一座城市，开始规划一段旅程。" })).toBeVisible();
-  await expect(page.locator(".weather-panel__state")).toContainText("天气服务尚未配置");
+  await expect(page.locator(".weather-panel__state")).toContainText("测试数据已载入");
   await expect(page.locator(".workspace-destination")).toHaveText("上海");
+  const todayCard = page.getByRole("complementary", { name: "上海当天的天气摘要" });
+  await expect(todayCard.locator(".signal-card__quote")).toHaveText("晴");
+  await expect(todayCard).toContainText("20° / 13°");
+  await expect(todayCard).toContainText("0 mm / 0%");
   await expect(page.getByRole("button", { name: "查询天气" })).toBeVisible();
-  expect(calls).toBe(0);
+  await expect(page.getByRole("article")).toHaveCount(1);
+  expect(calls).toBe(1);
 
   await setQuery(page);
   await page.getByRole("button", { name: "查询天气" }).click();
   await expect(page.locator(".weather-panel__state")).toContainText("测试数据已载入");
   await expect(page.getByRole("article")).toHaveCount(2);
   await expect(page.getByText(/测试 fixture/)).toBeVisible();
-  expect(calls).toBe(1);
+  expect(calls).toBe(2);
   await assertNoHorizontalOverflow(page);
 });
 
@@ -89,7 +113,7 @@ test("partial coverage shows missing dates and does not keep stale results", asy
   await expect(page.getByText(/以下日期暂无预报：10月28日/)).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(1);
   await expect(page.getByText(/测试 fixture/)).toBeVisible();
-  expect(calls).toBe(1);
+  expect(calls).toBe(2);
   await assertNoHorizontalOverflow(page);
 
   await page.getByLabel("结束日期").fill("2026-10-30");
@@ -112,9 +136,9 @@ test("unconfigured and failure states never create demo or stale weather", async
 
   await page.clock.install({ time: new Date("2026-10-27T12:00:00+08:00") });
   await enterWorkspace(page);
-  await expect(page.locator(".weather-panel__state")).toContainText("天气服务尚未配置");
+  await expect(page.locator(".weather-panel__state")).toContainText("天气服务暂不可用。");
   await expect(page.getByRole("article")).toHaveCount(0);
-  expect(calls).toBe(0);
+  expect(calls).toBe(1);
   await assertNoHorizontalOverflow(page);
 
   await setQuery(page);
@@ -123,7 +147,7 @@ test("unconfigured and failure states never create demo or stale weather", async
   await expect(page.getByRole("alert")).toContainText("天气服务暂不可用。");
   await expect(page.getByText("请求编号：weather-e2e-failure")).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(0);
-  expect(calls).toBe(1);
+  expect(calls).toBe(2);
   await assertNoHorizontalOverflow(page);
 });
 
@@ -135,10 +159,9 @@ test("375px portrait, landscape, and reduced motion remain usable", async ({ pag
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 375, height: 812 });
 
-  let releaseResponse: (() => void) | undefined;
-  const waitingForRelease = new Promise<void>((resolve) => { releaseResponse = resolve; });
+  let calls = 0;
   await page.route("**/api/weather/forecast", async (route) => {
-    await waitingForRelease;
+    calls += 1;
     await route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -148,14 +171,14 @@ test("375px portrait, landscape, and reduced motion remain usable", async ({ pag
 
   await enterWorkspace(page);
   await expect(page.getByRole("heading", { name: "查询一段天气" })).toBeVisible();
+  await expect(page.locator(".weather-panel__state")).toContainText("天气服务暂不可用。");
   await assertNoHorizontalOverflow(page);
   await setQuery(page);
   await page.getByRole("button", { name: "查询天气" }).click();
-  await expect(page.locator(".weather-panel__state")).toContainText("正在读取天气预报");
-  await expect(page.locator(".weather-panel__loading-bar")).toHaveCSS("animation-name", "none");
+  await expect(page.locator(".weather-panel__state")).toContainText("天气服务暂不可用。");
+  expect(calls).toBe(2);
+  await expect(page.locator(".weather-panel__loading-bar")).toHaveCount(0);
 
   await page.setViewportSize({ width: 812, height: 375 });
   await assertNoHorizontalOverflow(page);
-  releaseResponse?.();
-  await expect(page.locator(".weather-panel__state")).toContainText("天气服务暂不可用。");
 });

@@ -16,7 +16,7 @@
 
 ### TRN-01 — 建立 fare／route 严格领域契约与合成 fixture
 
-- [x] **验收：** 定义 `PlaceRef`、`FareQuery`、`FareSegment`、`ChargeComponent`、`FareOffer`、`RouteQuery`、`RouteStep`、`RouteOption` 及必要的窄枚举；复用 foundation 的金额、来源、时间、状态和结果 envelope。拒绝额外字段、无效日期、无时区 datetime、单边坐标、越界坐标、非正人数、负／float／bool 金额和非法方式；保持 `null`、`0`、`unknown`、`estimate`、`demo` 语义。显式验证 offer／route 的 `source_id` 最终必须能关联 envelope 来源。
+- [x] **验收：** 定义 `PlaceRef`、`FareQuery`、`FareSegment`、`ChargeComponent`、`FareOffer`、`RouteQuery`、`RouteStep`、`RouteOption` 及必要的窄枚举；复用 foundation 的金额、来源、时间、状态和结果 envelope。`FareQuery` 的 `child_count` 为可选非负人数且不大于总人数，不推断儿童票年龄规则。拒绝额外字段、无效日期、无时区 datetime、单边坐标、越界坐标、非正人数、负／float／bool 金额和非法方式；保持 `null`、`0`、`unknown`、`estimate`、`demo` 语义。显式验证 offer／route 的 `source_id` 最终必须能关联 envelope 来源。
 - [x] **验证：** 在 `backend/` 执行 `uv run pytest tests/unit/test_transport_contracts.py -q`（38 passed）与 `uv run ruff check app/modules/transport tests/unit/test_transport_contracts.py`（通过）；参数化覆盖航班／铁路、换乘分段、三种路线方式、CNY 金额、未知价格／余量、额外字段、日期／坐标／时间反例。
 - [x] **文件：** `app/modules/transport/__init__.py`、`app/modules/transport/contracts.py`、`tests/unit/test_transport_contracts.py`、`tests/fixtures/transport/fares.json`、`tests/fixtures/transport/routes.json`（5 个）。
 - **依赖：** 已验收 foundation。

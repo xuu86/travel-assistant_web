@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { fetchWeatherForecast, WeatherApiError, type WeatherQuery } from "./features/weather/api";
-import { WeatherPanel, type WeatherPanelState } from "./features/weather/WeatherPanel";
+import { WeatherPanel, WeatherSignalCard, type WeatherPanelState } from "./features/weather/WeatherPanel";
 import { BudgetPanel } from "./features/budget/BudgetPanel";
 import { TransportPanel } from "./features/transport/TransportPanel";
 import { ItineraryPanel } from "./features/itinerary/ItineraryPanel";
 import { AssistantPanel } from "./features/assistant/AssistantPanel";
+import type { PlaceRef } from "./features/transport/api";
 import type { components } from "./shared/api-contracts";
 import "./app.css";
 
@@ -38,12 +39,6 @@ function beijingDateInputValue(): string {
   return formatBeijingDate(new Date());
 }
 
-function addDays(value: string, days: number): string {
-  const date = new Date(`${value}T12:00:00+08:00`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return formatBeijingDate(date);
-}
-
 function requestedDays(startDate: string, endDate: string): number | null {
   const start = new Date(`${startDate}T00:00:00+08:00`);
   const end = new Date(`${endDate}T00:00:00+08:00`);
@@ -63,6 +58,13 @@ function safeWeatherError(error: unknown): WeatherApiError {
 export function App() {
   const [activeView, setActiveView] = useState<"weather" | "budget" | "transport" | "itinerary" | "assistant">("weather");
   const [selectedDestinationId, setSelectedDestinationId] = useState("");
+  const [selectedOriginId, setSelectedOriginId] = useState("current");
+  const [customOrigin, setCustomOrigin] = useState("");
+  const [originPlace, setOriginPlace] = useState<PlaceRef>({
+    display_name: "当前位置",
+    coordinate_system: "WGS84",
+  });
+  const [originLocationStatus, setOriginLocationStatus] = useState<"idle" | "loading" | "resolved" | "error">("idle");
   const [destination, setDestination] = useState<CityOption | null>(null);
   const [destinationError, setDestinationError] = useState<string | null>(null);
   const [showDestinationDialog, setShowDestinationDialog] = useState(false);
@@ -71,10 +73,12 @@ export function App() {
   const [workspaceKey, setWorkspaceKey] = useState(0);
   const defaultStartDate = useMemo(() => beijingDateInputValue(), []);
   const activeRequest = useRef(0);
+  const originRequest = useRef(0);
   const [startDate, setStartDate] = useState(defaultStartDate);
-  const [endDate, setEndDate] = useState(() => addDays(defaultStartDate, 2));
+  const [endDate, setEndDate] = useState(defaultStartDate);
   const [formError, setFormError] = useState<string | null>(null);
   const [weatherState, setWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
+  const [todayWeatherState, setTodayWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
 
   const rangeDays = requestedDays(startDate, endDate);
   const assistantEvidence: components["schemas"]["AssistantEvidence"][] =
@@ -108,6 +112,54 @@ export function App() {
     }
   }, [showDestinationDialog]);
 
+  useEffect(() => {
+    if (!destination) return;
+    const requestNumber = ++activeRequest.current;
+    void fetchWeatherForecast({
+      city_id: destination.id,
+      start_date: defaultStartDate,
+      end_date: defaultStartDate,
+    }).then((data) => {
+      if (activeRequest.current === requestNumber) {
+        setWeatherState({ status: "success", data });
+        setTodayWeatherState({ status: "success", data });
+      }
+    }).catch((error: unknown) => {
+      if (activeRequest.current === requestNumber) {
+        const safeError = safeWeatherError(error);
+        setWeatherState({ status: "error", error: safeError });
+        setTodayWeatherState({ status: "error", error: safeError });
+      }
+    });
+  }, [destination, defaultStartDate]);
+
+  function locateCurrentOrigin() {
+    const requestNumber = ++originRequest.current;
+    setOriginLocationStatus("loading");
+    setOriginPlace({ display_name: "当前位置", coordinate_system: "WGS84" });
+    if (!navigator.geolocation) {
+      setOriginLocationStatus("error");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (originRequest.current !== requestNumber) return;
+        setOriginPlace({
+          display_name: "当前位置",
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          coordinate_system: "WGS84",
+        });
+        setOriginLocationStatus("resolved");
+      },
+      () => {
+        if (originRequest.current !== requestNumber) return;
+        setOriginLocationStatus("error");
+      },
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 8_000 },
+    );
+  }
+
   function startWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const selected = CITY_OPTIONS.find((city) => city.id === selectedDestinationId);
@@ -115,15 +167,34 @@ export function App() {
       setDestinationError("请选择目的城市。");
       return;
     }
+    const selectedOrigin = CITY_OPTIONS.find((city) => city.id === selectedOriginId);
+    if (selectedOriginId === "custom" && !customOrigin.trim()) {
+      setDestinationError("请输入出发地点，或选择当前位置和已登记城市。");
+      return;
+    }
+    originRequest.current += 1;
+    if (selectedOriginId === "current") {
+      setOriginPlace({ display_name: "当前位置", coordinate_system: "WGS84" });
+      locateCurrentOrigin();
+    } else if (selectedOrigin) {
+      setOriginPlace({ display_name: selectedOrigin.name, coordinate_system: "WGS84" });
+      setOriginLocationStatus("idle");
+    } else {
+      setOriginPlace({ display_name: customOrigin.trim(), coordinate_system: "WGS84" });
+      setOriginLocationStatus("idle");
+    }
+    setWeatherState({ status: "loading" });
+    setTodayWeatherState({ status: "loading" });
     setDestination(selected);
     setDestinationError(null);
   }
 
   function resetWorkspaceState() {
     activeRequest.current += 1;
+    originRequest.current += 1;
     setWorkspaceKey((key) => key + 1);
     setStartDate(defaultStartDate);
-    setEndDate(addDays(defaultStartDate, 2));
+    setEndDate(defaultStartDate);
     setWeatherState({ status: "unconfigured" });
     setFormError(null);
     setActiveView("weather");
@@ -143,8 +214,27 @@ export function App() {
       setDestinationError("请选择目的城市。");
       return;
     }
+    const selectedOrigin = CITY_OPTIONS.find((city) => city.id === selectedOriginId);
+    if (selectedOriginId === "custom" && !customOrigin.trim()) {
+      setDestinationError("请输入出发地点，或选择当前位置和已登记城市。");
+      return;
+    }
+    originRequest.current += 1;
+    if (selectedOriginId === "current") {
+      setOriginPlace({ display_name: "当前位置", coordinate_system: "WGS84" });
+      setOriginLocationStatus("idle");
+    } else if (selectedOrigin) {
+      setOriginPlace({ display_name: selectedOrigin.name, coordinate_system: "WGS84" });
+      setOriginLocationStatus("idle");
+    } else {
+      setOriginPlace({ display_name: customOrigin.trim(), coordinate_system: "WGS84" });
+      setOriginLocationStatus("idle");
+    }
+    setTodayWeatherState({ status: "loading" });
     setDestination(selected);
     resetWorkspaceState();
+    setWeatherState({ status: "loading" });
+    if (selectedOriginId === "current") locateCurrentOrigin();
   }
 
   function clearPreviousForecast() {
@@ -216,8 +306,8 @@ export function App() {
         {!destination ? (
           <section className="destination-setup" aria-labelledby="destination-setup-title">
             <p className="eyebrow">TRAVEL WORKSPACE / SETUP</p>
-            <h1 id="destination-setup-title">先选一座目的城市</h1>
-            <p className="destination-setup__copy">确认目的地后，再进入天气、预算与交通工具。</p>
+            <h1 id="destination-setup-title">先选好目的地与出发地</h1>
+            <p className="destination-setup__copy">出发地默认尝试使用当前位置，也可以改选城市或输入地点。</p>
             <form className="destination-setup__form" onSubmit={startWorkspace}>
               <label className="field">
                 <span className="field__label">目的城市</span>
@@ -226,6 +316,22 @@ export function App() {
                   {CITY_OPTIONS.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
                 </select>
               </label>
+              <label className="field">
+                <span className="field__label">出发地点</span>
+                <select value={selectedOriginId} onChange={(event) => {
+                  setSelectedOriginId(event.target.value);
+                  setDestinationError(null);
+                }}>
+                  <option value="current">当前位置（默认）</option>
+                  {CITY_OPTIONS.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+                  <option value="custom">自定义地点</option>
+                </select>
+              </label>
+              {selectedOriginId === "custom" && <label className="field">
+                <span className="field__label">自定义出发地点</span>
+                <input value={customOrigin} maxLength={240} onChange={(event) => setCustomOrigin(event.target.value)} placeholder="例如：上海虹桥站" />
+              </label>}
+              {selectedOriginId === "current" && <p className="form-help">开始规划时会请求浏览器定位权限；拒绝定位后，可在交通查询中手动填写起点。</p>}
               {destinationError && <p id="destination-error" className="form-error" role="alert">{destinationError}</p>}
               <button className="primary-button" type="submit">开始规划 <span aria-hidden="true">→</span></button>
             </form>
@@ -233,7 +339,7 @@ export function App() {
         ) : (
           <>
             <section className="workspace-bar" aria-label="当前旅行工作区">
-              <p>当前目的地 <strong className="workspace-destination">{destination.name}</strong></p>
+              <p>出发地 <strong className="workspace-origin">{originPlace.display_name}</strong><span className="workspace-origin__status" aria-live="polite">{originLocationStatus === "loading" ? "正在定位" : originLocationStatus === "error" ? "定位失败，可手动修改" : originLocationStatus === "resolved" ? "定位完成" : ""}</span> · 目的地 <strong className="workspace-destination">{destination.name}</strong></p>
               <div className="workspace-bar__actions">
                 <button type="button" className="workspace-change" onClick={() => { setDestinationDialogAction("change"); setSelectedDestinationId(destination.id); setShowDestinationDialog(true); }}>更换目的地</button>
                 <button type="button" className="workspace-change" onClick={() => { setDestinationDialogAction("return"); setSelectedDestinationId(""); setShowDestinationDialog(true); }}>返回选择城市</button>
@@ -282,19 +388,7 @@ export function App() {
               <span>北京时间展示</span>
             </div>
           </div>
-          <aside className="hero__signal" aria-label="行旅天气查询原则">
-            <div className="signal-card__topline">
-              <span className="signal-card__label">FIELD NOTE</span>
-              <span className="signal-card__index" aria-hidden="true">01</span>
-            </div>
-            <p className="signal-card__quote">“看见覆盖，也看见缺口。”</p>
-            <div className="signal-card__rows">
-              <div><span>温度</span><strong>°C</strong></div>
-              <div><span>降水</span><strong>mm / %</strong></div>
-              <div><span>风速</span><strong>km/h</strong></div>
-            </div>
-            <p className="signal-card__note">每一项未知值都会保持为“暂无”，不会被当作晴天或零降水。</p>
-          </aside>
+          <WeatherSignalCard cityName={destination.name} date={defaultStartDate} state={todayWeatherState} />
         </section>
 
         <section className="query-card" id="weather-query" aria-labelledby="weather-query-title">
@@ -350,7 +444,7 @@ export function App() {
           <WeatherPanel cityName={destination.name} state={weatherState} />
             </div>
             <div className="workspace-view" hidden={activeView !== "budget"} key={`budget-${workspaceKey}`}><BudgetPanel destinationName={destination.name} /></div>
-            <div className="workspace-view" hidden={activeView !== "transport"} key={`transport-${workspaceKey}`}><TransportPanel key={workspaceKey} initialDestination={destination.name} /></div>
+            <div className="workspace-view" hidden={activeView !== "transport"} key={`transport-${workspaceKey}`}><TransportPanel key={workspaceKey} initialDestination={destination.name} initialOrigin={originPlace} originLocationStatus={originLocationStatus} /></div>
             <div className="workspace-view" hidden={activeView !== "itinerary"} key={`itinerary-${workspaceKey}`}><ItineraryPanel destinationName={destination.name} startDate={startDate} endDate={endDate} /></div>
             <div className="workspace-view" hidden={activeView !== "assistant"} key={`assistant-${workspaceKey}`}><AssistantPanel destinationName={destination.name} startDate={startDate} endDate={endDate} evidence={assistantEvidence} /></div>
           </>

@@ -87,7 +87,7 @@ function fillFareQuery() {
   fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "上海虹桥" } });
   fireEvent.change(screen.getByRole("textbox", { name: /目的地/ }), { target: { value: "杭州萧山" } });
   fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
-  fireEvent.change(screen.getByLabelText(/乘客人数/), { target: { value: "2" } });
+  fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "2" } });
 }
 
 function fillRouteQuery() {
@@ -163,6 +163,42 @@ describe("TransportPanel", () => {
         mode: "flight",
         travel_date: "2026-11-10",
         passenger_count: 2,
+        child_count: null,
+      }),
+    }));
+  });
+
+  it("inherits the selected origin coordinates and submits optional child passengers", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(fareResponse()));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TransportPanel
+      initialDestination="杭州"
+      initialOrigin={{
+        display_name: "当前位置",
+        latitude: 30.25,
+        longitude: 120.16,
+        coordinate_system: "WGS84",
+      }}
+      originLocationStatus="resolved"
+    />);
+    fireEvent.change(screen.getByRole("textbox", { name: /目的地/ }), { target: { value: "杭州萧山" } });
+    fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
+    fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText(/^儿童人数/), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
+
+    await screen.findByText("金额待核实");
+    expect(fetchMock).toHaveBeenCalledWith("/api/transport/fares/search", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        origin: {
+          display_name: "当前位置", latitude: 30.25, longitude: 120.16, coordinate_system: "WGS84",
+        },
+        destination: { display_name: "杭州萧山", coordinate_system: "WGS84" },
+        mode: "flight",
+        travel_date: "2026-11-10",
+        passenger_count: 3,
+        child_count: 1,
       }),
     }));
   });

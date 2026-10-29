@@ -12,7 +12,8 @@ router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 def _service(request: Request) -> AssistantService:
     service = getattr(request.app.state, "assistant_service", None)
     if service is None:
-        service = AssistantService(get_settings())
+        settings = getattr(request.app.state, "settings", None) or get_settings()
+        service = AssistantService(settings)
         request.app.state.assistant_service = service
     return service
 

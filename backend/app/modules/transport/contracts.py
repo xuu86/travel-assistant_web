@@ -168,6 +168,7 @@ class FareQuery(ContractModel):
     mode: FareMode
     travel_date: date
     passenger_count: int = Field(ge=1)
+    child_count: int | None = Field(default=None, ge=0)
 
     @field_validator("travel_date", mode="before")
     @classmethod
@@ -178,6 +179,8 @@ class FareQuery(ContractModel):
     def validate_distinct_places(self) -> FareQuery:
         if same_place(self.origin, self.destination):
             raise ValueError("origin and destination must identify different places.")
+        if self.child_count is not None and self.child_count > self.passenger_count:
+            raise ValueError("child_count must not exceed passenger_count.")
         return self
 
 

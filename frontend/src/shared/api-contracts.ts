@@ -469,6 +469,8 @@ export interface components {
         };
         /** FareQuery */
         FareQuery: {
+            /** Child Count */
+            child_count?: number | null;
             destination: components["schemas"]["PlaceRef"];
             /**
              * Mode

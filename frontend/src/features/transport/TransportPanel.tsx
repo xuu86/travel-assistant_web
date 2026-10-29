@@ -7,6 +7,7 @@ import {
   TransportApiError,
   type FareQuery,
   type FareResponse,
+  type PlaceRef,
   type RouteMode,
   type RouteResponse,
 } from "./api";
@@ -16,6 +17,7 @@ type ResultState = components["schemas"]["ResultState"];
 type EvidenceState = components["schemas"]["EvidenceState"];
 type FareOffer = components["schemas"]["FareOffer"];
 type RouteOption = components["schemas"]["RouteOption"];
+const EMPTY_PLACE: PlaceRef = { display_name: "", coordinate_system: "WGS84" };
 
 type QueryState<T> =
   | { status: "unconfigured" }
@@ -151,6 +153,7 @@ function routeFareBasisLabel(basis: RouteOption["fare_basis"]): string {
 
 function PlaceFields(props: {
   origin: string;
+  originHint: string;
   destination: string;
   onOriginChange: (value: string) => void;
   onDestinationChange: (value: string) => void;
@@ -168,7 +171,7 @@ function PlaceFields(props: {
           required
           aria-describedby="transport-origin-hint"
         />
-        <span className="transport-field__hint" id="transport-origin-hint">输入明确地点或站点；不会自动替换为城市中心。</span>
+        <span className="transport-field__hint" id="transport-origin-hint">{props.originHint}</span>
       </label>
       <label className="transport-field">
         <span className="transport-field__label">目的地</span>
@@ -363,13 +366,23 @@ function RouteCards({ data }: { data: RouteResponse }) {
   );
 }
 
-export function TransportPanel({ initialDestination }: { initialDestination: string }) {
+export function TransportPanel({
+  initialDestination,
+  initialOrigin = EMPTY_PLACE,
+  originLocationStatus = "idle",
+}: {
+  initialDestination: string;
+  initialOrigin?: PlaceRef;
+  originLocationStatus?: "idle" | "loading" | "resolved" | "error";
+}) {
   const [activeSection, setActiveSection] = useState<"fares" | "routes">("fares");
-  const [origin, setOrigin] = useState("");
+  const [origin, setOrigin] = useState<PlaceRef>(initialOrigin);
+  const originWasEdited = useRef(false);
   const [destination, setDestination] = useState(initialDestination);
   const [fareMode, setFareMode] = useState<FareQuery["mode"]>("flight");
   const [travelDate, setTravelDate] = useState("");
-  const [passengerCount, setPassengerCount] = useState("");
+  const [adultCount, setAdultCount] = useState("1");
+  const [childCount, setChildCount] = useState("");
   const [departAt, setDepartAt] = useState("");
   const [fareFormError, setFareFormError] = useState<string | null>(null);
   const [routeFormError, setRouteFormError] = useState<string | null>(null);
@@ -381,6 +394,10 @@ export function TransportPanel({ initialDestination }: { initialDestination: str
   }));
   const fareSequence = useRef(0);
   const routeSequences = useRef<Record<RouteMode, number>>({ transit: 0, walking: 0, taxi: 0 });
+
+  useEffect(() => {
+    if (!originWasEdited.current) setOrigin(initialOrigin);
+  }, [initialOrigin]);
 
   function clearFareResults() {
     fareSequence.current += 1;
@@ -413,14 +430,19 @@ export function TransportPanel({ initialDestination }: { initialDestination: str
   }, []);
 
   function validLocations(setError: (message: string) => void): boolean {
-    if (!origin.trim() || !destination.trim()) {
+    if (!origin.display_name.trim() || !destination.trim()) {
       setError("请填写起点和目的地。");
+      return false;
+    }
+    if (origin.display_name.trim() === "当前位置" && origin.latitude === undefined) {
+      setError("尚未取得当前位置，请手动填写起点或重新选择出发地点。");
       return false;
     }
     return true;
   }
 
-  function buildPlace(name: string) {
+  function buildPlace(name: string, place?: PlaceRef) {
+    if (place && name.trim() === place.display_name) return place;
     return { display_name: name.trim(), coordinate_system: "WGS84" as const };
   }
 
@@ -432,22 +454,33 @@ export function TransportPanel({ initialDestination }: { initialDestination: str
       setFareFormError("请选择明确的目标出行日期。");
       return;
     }
-    const parsedPassengerCount = Number(passengerCount);
-    if (!Number.isSafeInteger(parsedPassengerCount) || parsedPassengerCount < 1) {
-      setFareFormError("请输入大于零的整数乘客人数。");
+    const parsedAdultCount = Number(adultCount);
+    const parsedChildCount = childCount === "" ? null : Number(childCount);
+    if (!Number.isSafeInteger(parsedAdultCount) || parsedAdultCount < 1) {
+      setFareFormError("成人数量必须是大于零的整数。");
       return;
     }
-    if (origin.trim().toLocaleLowerCase() === destination.trim().toLocaleLowerCase()) {
+    if (parsedChildCount !== null && (!Number.isSafeInteger(parsedChildCount) || parsedChildCount < 0)) {
+      setFareFormError("儿童人数必须是零或正整数，也可以留空。");
+      return;
+    }
+    const totalPassengers = parsedAdultCount + (parsedChildCount ?? 0);
+    if (!Number.isSafeInteger(totalPassengers)) {
+      setFareFormError("乘客总数超出有效范围。");
+      return;
+    }
+    if (origin.display_name.trim().toLocaleLowerCase() === destination.trim().toLocaleLowerCase()) {
       setFareFormError("起点与目的地不能相同。");
       return;
     }
 
     const query: FareQuery = {
-      origin: buildPlace(origin),
+      origin: buildPlace(origin.display_name, origin),
       destination: buildPlace(destination),
       mode: fareMode,
       travel_date: travelDate,
-      passenger_count: parsedPassengerCount,
+      passenger_count: totalPassengers,
+      child_count: parsedChildCount,
     };
     const sequence = ++fareSequence.current;
     setFareFormError(null);
@@ -481,7 +514,7 @@ export function TransportPanel({ initialDestination }: { initialDestination: str
     }
 
     const query = {
-      origin: buildPlace(origin),
+      origin: buildPlace(origin.display_name, origin),
       destination: buildPlace(destination),
       mode,
       depart_at: departure,
@@ -533,9 +566,20 @@ export function TransportPanel({ initialDestination }: { initialDestination: str
 
       <div className="transport-query-card">
         <PlaceFields
-          origin={origin}
+          origin={origin.display_name}
+          originHint={originLocationStatus === "loading"
+            ? "正在获取浏览器当前位置。"
+            : originLocationStatus === "error"
+              ? "定位未完成；请手动填写起点后查询。"
+              : origin.latitude !== undefined
+                ? "默认起点来自浏览器定位；可编辑地点，编辑后将按文字地点查询。"
+                : "已沿用规划时设置的出发地；可改为站点、机场或其他地点。"}
           destination={destination}
-          onOriginChange={(value) => { clearResults(); setOrigin(value); }}
+          onOriginChange={(value) => {
+            clearResults();
+            originWasEdited.current = true;
+            setOrigin({ display_name: value, coordinate_system: "WGS84" });
+          }}
           onDestinationChange={(value) => { clearResults(); setDestination(value); }}
         />
 
@@ -555,9 +599,14 @@ export function TransportPanel({ initialDestination }: { initialDestination: str
                 <span className="transport-field__hint" id="transport-travel-date-hint">按显式日期查询，不自动替换为今天。</span>
               </label>
               <label className="transport-field">
-                <span className="transport-field__label">乘客人数</span>
-                <input type="number" min="1" step="1" inputMode="numeric" value={passengerCount} onChange={(event) => { clearFareResults(); setPassengerCount(event.target.value); }} aria-describedby="transport-passenger-count-hint" />
-                <span className="transport-field__hint" id="transport-passenger-count-hint">不限制产品人数；请核对供应商返回的计价人数。</span>
+                <span className="transport-field__label">成人数量</span>
+                <input type="number" min="1" step="1" inputMode="numeric" value={adultCount} onChange={(event) => { clearFareResults(); setAdultCount(event.target.value); }} aria-describedby="transport-adult-count-hint" />
+                <span className="transport-field__hint" id="transport-adult-count-hint">至少 1 位成人；与儿童人数合并为查询总人数。</span>
+              </label>
+              <label className="transport-field">
+                <span className="transport-field__label">儿童人数（可选）</span>
+                <input type="number" min="0" step="1" inputMode="numeric" value={childCount} onChange={(event) => { clearFareResults(); setChildCount(event.target.value); }} aria-describedby="transport-child-count-hint" />
+                <span className="transport-field__hint" id="transport-child-count-hint">可留空；儿童票规则和票价以服务商为准。</span>
               </label>
             </div>
             <div className="transport-search-form__footer">

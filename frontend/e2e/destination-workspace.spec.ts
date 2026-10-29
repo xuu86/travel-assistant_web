@@ -27,7 +27,7 @@ test("destination setup gates tools, preserves drafts, confirms reset, and reset
   await expect(page.locator(".budget-destination")).toHaveText("目的地：杭州");
   await page.getByLabel("整趟总预算（元）").fill("6000");
   await page.getByRole("button", { name: "交通" }).click();
-  await expect(page.getByRole("textbox", { name: /起点/ })).toHaveValue("");
+  await expect(page.getByRole("textbox", { name: /起点/ })).toHaveValue("当前位置");
   await expect(page.getByRole("textbox", { name: /目的地/ })).toHaveValue("杭州");
   await page.getByRole("button", { name: "预算" }).click();
   await expect(page.getByLabel("整趟总预算（元）")).toHaveValue("6000");
@@ -45,7 +45,7 @@ test("destination setup gates tools, preserves drafts, confirms reset, and reset
   await expect(page.getByRole("heading", { name: "从一座城市，开始规划一段旅程。" })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "先选一座目的城市" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "先选好目的地与出发地" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "目的城市" })).toHaveValue("");
   await expect(page.getByRole("navigation", { name: "旅行工具" })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

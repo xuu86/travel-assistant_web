@@ -9,7 +9,7 @@
 2. 首版只做查询与展示，不预订、不支付、不跳转售票平台（D-025）。不存在可验证供应商时返回明确未配置／不可用状态；生产运行不返回演示数据，也不把缓存旧结果冒充新查询。
 3. 交通报价服务目前没有已验证的免费班次／票价来源（E-004）；高德路线权限、额度和适用条件未验证（E-002）。任何 live adapter 和真实请求均须有单独的供应商 Gate 与明确授权；本 SPEC 不构成该授权。
 4. 本版本已冻结 `transport` 的 `Q-017` 口径：航班／铁路请求必须显式携带目标出行日期，不以系统当天静默替代；交通模块不自动把该日期与 itinerary 日期强制绑定，也不以 itinerary 日期覆盖用户输入。若后续 itinerary 需要严格日期一致性，由其边界契约另行校验。
-5. 乘客类别组合、人数上限、巴士票价范围和报价缓存 TTL／限流（Q-006、Q-014）均未确认；草案不臆造产品上限、报价新鲜度期限或对外平台覆盖。
+5. 儿童票年龄规则、人数上限、巴士票价范围和报价缓存 TTL／限流（Q-006、Q-014）均未确认；查询可选传递儿童人数，但不推断票种／年龄资格，也不臆造产品上限、报价新鲜度期限或平台覆盖。
 6. route geometry 只接受 provider 实际返回的 WGS84 坐标；缺少 geometry 时保留可读文字信息并标注地图路线待核实，不自行插值画线。
 7. 规格默认预算与可汇总报价沿用 CNY 整数分；是否首版还要展示非 CNY 原始票价尚未确认。不得把外币数字直接放进 `price_fen` 或在没有获批汇率／舍入契约时自动换算。
 
@@ -33,7 +33,7 @@
 ### 首版包含
 
 - 单程跨城交通查询契约，支持航班和铁路／高铁候选；返程作为另一次显式目标日期查询，不假设往返价格能组合。
-- 乘客人数输入以及报价的金额、币种、计价基准、已包含／不含／未知费用项、可用性和来源字段；只呈现 provider 实际提供的信息。
+- 成人数量、可选儿童数量以及报价的金额、币种、计价基准、已包含／不含／未知费用项、可用性和来源字段；查询总人数为成人与儿童之和，儿童票资格和价格只以 provider 规则为准。
 - 城市公交／地铁、步行及出租车／驾车路线查询契约；各出行方式独立返回状态，单方式失败不阻断其他方式。
 - 路线摘要的距离、预计耗时、分段文字指引、可选费用信息，以及可选的 provider 路线几何；路线和票价使用不同 schema 与来源语义。
 - Foundation `SourceRef`、`EvidenceState`、`ResultEnvelope`、公共错误和 request ID；金额沿用整数分与 CNY，缺失报价为 `null` 而非 0。
@@ -66,7 +66,8 @@
 | `destination` | `PlaceRef` | 是 | 不允许空对象 | 同 origin；必须与 origin 不同（调用方语义确认） | 用户或调用方 |
 | `mode` | `flight` / `rail` | 是 | 不允许为空 | 一个请求只指定一个 mode | 用户选择 |
 | `travel_date` | date | 是 | 不允许为空 | 必须是显式查询日期；是否强制等同 itinerary 日期按 Q-017 冻结 | 用户选择／itinerary |
-| `passenger_count` | 正整数 | 是 | 不允许为空 | 不设置未经确认的业务最大人数；provider 不支持时返回明确状态 | 用户输入 |
+| `passenger_count` | 正整数 | 是 | 成人与儿童总人数 | 不设置未经确认的业务最大人数；provider 不支持时返回明确状态 | 用户输入 |
+| `child_count` | 非负整数或 null | 否 | 可选儿童人数；不得大于 `passenger_count` | 不推断儿童年龄、免票条件或票价 | 用户输入 |
 
 `PlaceRef` 建议字段：`place_id: string | null`、`display_name: string`、`latitude: number | null`、`longitude: number | null`、`coordinate_system: "WGS84"`。经纬度必须同时为空或同时有效；不得将模糊文本 geocode 成 verified，除非真实 provider 响应提供来源和状态。
 
@@ -94,7 +95,7 @@
 
 `FareSegment` 最少含 `segment_id`、`origin_name`、`destination_name`、`departure_at`、`arrival_at`、`departure_timezone`、`arrival_timezone`、`service_number`，以及 provider 有提供时的 `operating_carrier`、`transfer_place`。segments 数组顺序即 provider 的乘行顺序，不由 transport 重排。时间必须带时区并规范为 UTC，同时保留 IANA 当地时区；缺少的分段时刻／站点留空，不由上层推算。Offer 顶层出发／到达时间分别表示旅程首段离发与末段到达；多段 offer 的顶层 `service_number` 设为 null，不能拼成虚构的单个车次。Offer 总价语义应明确是所列分段合计还是单段价；不能把每段价格再次相加造成重复计费。
 
-`price_basis=per_passenger` 表示报价仅对应一位乘客，UI 必须标单人价，不自动乘以查询人数；`party_total` 必须明确对应请求中的同一 `passenger_count`；`unknown` 不得推导个人／团队总价。Passenger count 不代表已提供乘客年龄／票种构成。
+`price_basis=per_passenger` 表示报价仅对应一位乘客，UI 必须标单人价，不自动乘以查询人数；`party_total` 必须明确对应请求中的同一 `passenger_count`；`unknown` 不得推导个人／团队总价。`child_count` 只记录用户查询构成，不能推断年龄、具体票种、儿童票资格或儿童票价。
 
 `ChargeComponent` 最少含 `charge_type`、`display_name`、`inclusion_state: included | excluded | unknown`、`amount_fen: int | null`、`currency_code`、`amount_basis: per_passenger | party_total | unknown`。金额非空时必须是非负 CNY 整数分；金额为 null 时不得展示 0。排除项的实际金额未知时保持 null，不能从总价倒算；多乘客展示必须明确单人还是所选人数合计。provider 未提供某费用项目时不得自行补充或声称已包含。
 

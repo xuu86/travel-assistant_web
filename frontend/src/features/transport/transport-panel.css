@@ -17,7 +17,7 @@
 .transport-field input:hover, .transport-field select:hover { border-color: #8eb9ae; }
 .transport-field__hint { color: var(--ink-faint); font-size: 12px; line-height: 1.55; }
 .transport-search-form, .transport-route-search { padding-top: 22px; }
-.transport-search-form__fields { display: grid; grid-template-columns: minmax(140px, .8fr) minmax(190px, 1fr) minmax(150px, .8fr); gap: 16px; }
+.transport-search-form__fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .transport-search-form__footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 22px; }
 .transport-primary-button, .transport-secondary-button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; gap: 12px; padding: 0 18px; border: 0; border-radius: 10px; font-weight: 800; transition: background-color 150ms ease, transform 150ms ease; }
 .transport-primary-button { background: var(--orange); color: #fff; box-shadow: 0 7px 18px rgb(184 72 37 / 18%); }
@@ -80,7 +80,6 @@
 @media (max-width: 720px) {
   .transport-panel__heading { align-items: flex-start; flex-direction: column; }
   .transport-search-form__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .transport-search-form__fields .transport-field:first-child { grid-column: 1 / -1; }
   .transport-fare-grid { grid-template-columns: 1fr 1fr; }
   .transport-price-block { grid-column: 1 / -1; }
 }
@@ -89,7 +88,6 @@
   .transport-tabs { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .transport-tabs button { padding-inline: 8px; }
   .transport-location-fields, .transport-search-form__fields { grid-template-columns: 1fr; }
-  .transport-search-form__fields .transport-field:first-child { grid-column: auto; }
   .transport-search-form__footer { align-items: stretch; flex-direction: column; }
   .transport-primary-button { width: 100%; }
   .transport-route-actions { grid-template-columns: 1fr; }

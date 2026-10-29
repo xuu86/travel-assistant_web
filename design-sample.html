@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f5f1" />
+    <meta name="description" content="行旅智能旅游助手界面样例，使用非实时示例数据。" />
+    <title>行旅 · 界面样例</title>
+    <link rel="preconnect" href="https://thumb.wikimedia.org" />
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f4f5f1;
+        --surface: #fff;
+        --ink: #202c2b;
+        --muted: #727d79;
+        --line: #e2e6e1;
+        --green: #285e50;
+        --green-light: #e8f0eb;
+        --coral: #ce6044;
+        --yellow: #e9bd57;
+        --blue: #668da0;
+        --radius: 8px;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+      body { margin: 0; min-width: 320px; background: var(--paper); color: var(--ink); font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; }
+      a { color: inherit; }
+      button, select { font: inherit; }
+      button, a, select { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+      :focus-visible { outline: 3px solid #bf6b51; outline-offset: 3px; }
+      .skip-link { position: fixed; z-index: 5; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      .skip-link:focus { top: 8px; left: 8px; width: auto; height: auto; padding: 10px 14px; clip-path: none; background: var(--ink); color: white; }
+      .layout { display: grid; grid-template-columns: 224px minmax(0, 1fr); min-height: 100vh; }
+      .sidebar { position: sticky; top: 0; display: flex; height: 100vh; flex-direction: column; padding: 28px 18px 18px; border-right: 1px solid var(--line); background: #fafbf8; }
+      .brand { display: flex; align-items: center; gap: 11px; padding: 0 10px 28px; text-decoration: none; }
+      .brand-mark { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 7px 7px 7px 2px; background: var(--green); color: white; font-family: Georgia, serif; font-size: 19px; font-weight: 700; }
+      .brand-name { display: block; font-size: 16px; font-weight: 800; }
+      .brand-caption { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+      .nav-label { padding: 14px 10px 8px; color: #8b9490; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+      .nav { display: grid; gap: 4px; }
+      .nav a { display: flex; min-height: 42px; align-items: center; gap: 12px; padding: 0 11px; border-radius: 5px; color: #68736f; font-size: 13px; text-decoration: none; transition: background-color 140ms ease, color 140ms ease; }
+      .nav a:hover { background: #eef2ed; color: var(--ink); }
+      .nav a[aria-current="location"] { background: var(--green-light); color: var(--green); font-weight: 700; }
+      .nav-index { width: 17px; color: #9aa39e; font-family: Georgia, serif; font-size: 11px; }
+      .sidebar-bottom { margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--line); }
+      .trip-status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+      .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #64a17c; }
+      .sidebar-footnote { margin: 9px 0 0; color: #929b97; font-size: 10px; line-height: 1.6; }
+      .main { min-width: 0; padding: 0 clamp(22px, 4vw, 58px) 34px; }
+      .topbar { display: flex; min-height: 70px; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); }
+      .breadcrumb { color: var(--muted); font-size: 12px; }
+      .breadcrumb strong { color: var(--ink); font-weight: 700; }
+      .top-actions { display: flex; align-items: center; gap: 14px; }
+      .sample-badge { padding: 6px 9px; border: 1px solid #eadcae; border-radius: 4px; background: #fff9e7; color: #826b2e; font-size: 10px; font-weight: 700; }
+      .date-label { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+      .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 28px 0 18px; }
+      .eyebrow { margin: 0 0 8px; color: var(--coral); font-size: 10px; font-weight: 800; letter-spacing: 1.2px; }
+      h1, h2, h3, p { text-wrap: pretty; }
+      h1 { margin: 0; font-family: Georgia, "Songti SC", serif; font-size: 31px; font-weight: 600; line-height: 1.2; }
+      .subtitle { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+      .heading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .button { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 6px; padding: 0 13px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease; }
+      .button:hover { border-color: #bdc9c2; background: #f9fbf8; }
+      .button-primary { border-color: var(--green); background: var(--green); color: white; }
+      .button-primary:hover { border-color: #1f4e42; background: #1f4e42; }
+      .dialog { width: min(calc(100% - 32px), 420px); max-width: none; margin: auto; padding: 22px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); }
+      .dialog::backdrop { background: rgb(21 34 30 / 42%); }
+      .dialog h2 { margin: 0; font-size: 18px; }
+      .dialog form { display: grid; gap: 15px; margin-top: 17px; }
+      .dialog label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
+      .dialog input { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid #cbd4ce; border-radius: 4px; color: var(--ink); }
+      .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+      .destination-band { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); min-height: 208px; overflow: hidden; background: #e8ece5; }
+      .destination-copy { display: flex; flex-direction: column; justify-content: center; padding: 27px 32px; }
+      .destination-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 13px; }
+      .meta-tag { padding: 4px 8px; border: 1px solid #d3ddd4; border-radius: 3px; color: #53645a; font-size: 10px; }
+      .destination-band h2 { max-width: 470px; margin: 0; font-family: Georgia, "Songti SC", serif; font-size: 27px; font-weight: 600; line-height: 1.25; }
+      .destination-band p { max-width: 500px; margin: 10px 0 0; color: #5d6a62; font-size: 12px; line-height: 1.75; }
+      .destination-image { position: relative; min-height: 208px; background: #78958a; }
+      .destination-image img { display: block; width: 100%; height: 100%; min-height: 208px; object-fit: cover; object-position: center 55%; }
+      .photo-caption { position: absolute; right: 12px; bottom: 10px; padding: 5px 8px; background: rgb(20 32 29 / 72%); color: white; font-size: 9px; }
+      .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 27px 0 12px; }
+      .section-head h2 { margin: 0; font-size: 15px; font-weight: 800; }
+      .section-head p { margin: 0; color: var(--muted); font-size: 10px; }
+      .overview-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(245px, .8fr); gap: 14px; align-items: stretch; }
+      .panel { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+      .weather-panel { padding: 18px 19px 16px; }
+      .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+      .panel-heading h3 { margin: 0; font-size: 13px; }
+      .panel-heading p { margin: 5px 0 0; color: var(--muted); font-size: 10px; }
+      .data-note { color: #8c9691; font-size: 9px; }
+      .forecast { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 18px; }
+      .forecast-day { min-width: 0; padding: 9px 12px; border-left: 1px solid var(--line); }
+      .forecast-day:first-child { padding-left: 0; border-left: 0; }
+      .forecast-day:last-child { padding-right: 0; }
+      .day-name { color: var(--muted); font-size: 10px; }
+      .weather-symbol { display: block; margin: 13px 0 9px; color: var(--yellow); font-size: 22px; line-height: 1; }
+      .weather-symbol.cloud { color: var(--blue); }
+      .temperature { display: flex; align-items: baseline; gap: 7px; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+      .temperature span { color: #89938e; font-size: 10px; font-weight: 500; }
+      .weather-detail { margin-top: 8px; color: var(--muted); font-size: 9px; }
+      .budget-panel { display: flex; flex-direction: column; padding: 18px 19px; }
+      .budget-total { margin: 18px 0 4px; font-family: Georgia, serif; font-size: 30px; font-variant-numeric: tabular-nums; }
+      .budget-total small { margin-left: 4px; color: var(--muted); font-family: inherit; font-size: 11px; }
+      .budget-progress { height: 5px; margin: 12px 0; overflow: hidden; background: #edf0ec; }
+      .budget-progress span { display: block; width: 62%; height: 100%; background: var(--coral); }
+      .budget-split { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+      .budget-split span { display: block; color: var(--muted); font-size: 9px; }
+      .budget-split strong { display: block; margin-top: 5px; font-size: 11px; font-variant-numeric: tabular-nums; }
+      .lower-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(245px, .8fr); gap: 14px; margin-top: 14px; }
+      .itinerary-panel { padding: 18px 19px 5px; }
+      .itinerary-row { display: grid; grid-template-columns: 58px 1fr auto; gap: 12px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line); }
+      .itinerary-row:first-of-type { margin-top: 14px; }
+      .time { color: var(--green); font-family: Georgia, serif; font-size: 12px; font-variant-numeric: tabular-nums; }
+      .stop-title { margin: 0; font-size: 11px; font-weight: 800; }
+      .stop-copy { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+      .stop-tag { padding: 4px 6px; background: #f3f5f2; color: #65736a; font-size: 9px; white-space: nowrap; }
+      .side-stack { display: grid; gap: 14px; align-content: start; }
+      .transport-panel, .assistant-panel { padding: 17px 18px; }
+      .transport-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--line); }
+      .transport-status strong { font-size: 11px; }
+      .status-label { padding: 4px 7px; border-radius: 3px; background: #f3eee2; color: #88713c; font-size: 9px; }
+      .transport-panel > p, .assistant-panel > p { margin: 10px 0 0; color: var(--muted); font-size: 10px; line-height: 1.65; }
+      .assistant-panel { background: #edf2ef; }
+      .assistant-panel .button { margin-top: 13px; background: transparent; }
+      .footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 25px; padding-top: 14px; border-top: 1px solid var(--line); color: #87918c; font-size: 9px; }
+      @media (max-width: 1000px) {
+        .layout { grid-template-columns: 190px minmax(0, 1fr); }
+        .main { padding-right: 26px; padding-left: 26px; }
+        .overview-grid, .lower-grid { grid-template-columns: 1fr; }
+        .budget-panel { min-height: 180px; }
+      }
+      @media (max-width: 680px) {
+        html { scroll-padding-top: 108px; }
+        .layout { display: block; }
+        .sidebar { position: sticky; z-index: 3; top: 0; width: 100%; height: auto; padding: 0 14px; border-right: 0; border-bottom: 1px solid var(--line); }
+        .brand { height: 54px; padding: 0 3px; }
+        .brand-mark { width: 30px; height: 30px; font-size: 16px; }
+        .nav-label, .sidebar-bottom { display: none; }
+        .nav { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+        .nav::-webkit-scrollbar { display: none; }
+        .nav a { flex: 0 0 auto; min-height: 36px; gap: 6px; padding: 0 10px; font-size: 10px; }
+        .nav-index { width: auto; font-size: 9px; }
+        .main { padding: 0 16px 24px; }
+        .topbar { min-height: 52px; }
+        .date-label { display: none; }
+        .page-heading { align-items: flex-start; flex-direction: column; gap: 14px; padding: 22px 0 15px; }
+        h1 { font-size: 26px; }
+        .destination-band { grid-template-columns: 1fr; }
+        .destination-copy { padding: 21px 19px; }
+        .destination-band h2 { font-size: 23px; }
+        .destination-image { min-height: 155px; max-height: 180px; }
+        .destination-image img { min-height: 155px; }
+        .section-head { align-items: flex-start; flex-direction: column; gap: 5px; margin-top: 22px; }
+        .weather-panel, .budget-panel, .itinerary-panel { padding-right: 14px; padding-left: 14px; }
+        .forecast-day { padding-right: 7px; padding-left: 7px; }
+        .temperature { gap: 4px; font-size: 12px; }
+        .weather-detail { font-size: 8px; }
+        .itinerary-row { grid-template-columns: 47px minmax(0, 1fr); gap: 9px; }
+        .stop-tag { grid-column: 2; justify-self: start; }
+        .footer { flex-direction: column; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { transition-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳转到主要内容</a>
+    <div class="layout">
+      <aside class="sidebar" aria-label="主导航">
+        <a class="brand" href="#top" aria-label="行旅首页">
+          <span class="brand-mark" aria-hidden="true">行</span>
+          <span><span class="brand-name">行旅</span><span class="brand-caption">TRAVEL WORKSPACE</span></span>
+        </a>
+        <p class="nav-label">旅行工作区</p>
+        <nav class="nav" aria-label="旅行模块">
+          <a href="#overview" aria-current="location"><span class="nav-index">01</span>行程总览</a>
+          <a href="#weather"><span class="nav-index">02</span>天气预报</a>
+          <a href="#itinerary"><span class="nav-index">03</span>每日行程</a>
+          <a href="#budget"><span class="nav-index">04</span>预算规划</a>
+          <a href="#transport"><span class="nav-index">05</span>交通安排</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="trip-status"><span class="status-dot" aria-hidden="true"></span>当前计划 · 上海</div>
+          <p class="sidebar-footnote">样例界面中的天气、预算与行程数据均为静态演示。</p>
+        </div>
+      </aside>
+
+      <main class="main" id="main-content">
+        <header class="topbar" id="top">
+          <div class="breadcrumb">我的旅行 <span aria-hidden="true">/</span> <strong>上海慢游</strong></div>
+          <div class="top-actions"><span class="date-label">行程日期 · 2026年11月06日 — 11月09日</span><span class="sample-badge">样例预览 · 非实时数据</span></div>
+        </header>
+
+        <section class="page-heading" id="overview" aria-labelledby="page-title">
+          <div><p class="eyebrow">TRIP OVERVIEW / 01</p><h1 id="page-title">上海慢游</h1><p class="subtitle">4 天 3 夜 · 与同行人共享的城市漫游计划</p></div>
+          <div class="heading-actions"><button class="button" id="edit-plan" type="button" aria-label="编辑上海慢游计划">编辑计划</button><button class="button button-primary" id="add-plan-item" type="button">＋ 添加安排</button></div>
+        </section>
+
+        <section class="destination-band" aria-labelledby="destination-title">
+          <div class="destination-copy">
+            <div class="destination-meta"><span class="meta-tag">目的地 · 上海市</span><span class="meta-tag">初冬出行</span></div>
+            <h2 id="destination-title">沿着黄浦江，慢一点认识这座城。</h2>
+            <p>从老街早餐到江边日落，把天气、交通与每日安排放在同一张旅行工作台里。</p>
+          </div>
+          <div class="destination-image">
+            <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Shanghai_skyline_from_the_bund.jpg/1280px-Shanghai_skyline_from_the_bund.jpg?utm_source=commons.wikimedia.org&amp;utm_campaign=imageinfo&amp;utm_content=thumbnail" width="1200" height="560" alt="上海外滩与浦东天际线" fetchpriority="high" />
+            <span class="photo-caption">上海 · 黄浦江沿岸</span>
+          </div>
+        </section>
+
+        <div class="section-head" id="weather"><h2>出行天气</h2><p>未来 4 日 · 示例预报，不代表实时天气</p></div>
+        <section class="overview-grid" aria-label="天气与预算概览">
+          <article class="panel weather-panel" aria-labelledby="weather-title">
+            <div class="panel-heading"><div><h3 id="weather-title">上海 · 逐日概览</h3><p>适合按天气调整每日户外安排</p></div><span class="data-note">示例数据</span></div>
+            <div class="forecast">
+              <div class="forecast-day"><span class="day-name">周五 · 11/06</span><span class="weather-symbol" aria-label="晴">☼</span><div class="temperature">19° <span>/ 13°</span></div><div class="weather-detail">降水 10% · 微风</div></div>
+              <div class="forecast-day"><span class="day-name">周六 · 11/07</span><span class="weather-symbol cloud" aria-label="多云">◒</span><div class="temperature">18° <span>/ 14°</span></div><div class="weather-detail">降水 20% · 东风</div></div>
+              <div class="forecast-day"><span class="day-name">周日 · 11/08</span><span class="weather-symbol cloud" aria-label="阴">☁</span><div class="temperature">16° <span>/ 12°</span></div><div class="weather-detail">降水 35% · 微风</div></div>
+              <div class="forecast-day"><span class="day-name">周一 · 11/09</span><span class="weather-symbol" aria-label="晴间多云">◐</span><div class="temperature">17° <span>/ 11°</span></div><div class="weather-detail">降水 10% · 北风</div></div>
+            </div>
+          </article>
+          <article class="panel budget-panel" id="budget" aria-labelledby="budget-title">
+            <div class="panel-heading"><div><h3 id="budget-title">旅行预算</h3><p>4 天计划 · 3 位同行人</p></div><span class="data-note">示例预算</span></div>
+            <p class="budget-total">¥ 8,460<small>/ ¥ 13,600</small></p>
+            <div class="budget-progress" role="img" aria-label="示例预算已规划百分之六十二"><span></span></div>
+            <div class="budget-split"><div><span>住宿</span><strong>¥ 3,600</strong></div><div><span>交通</span><strong>¥ 1,280</strong></div><div><span>餐饮</span><strong>¥ 2,100</strong></div></div>
+          </article>
+        </section>
+
+        <div class="section-head" id="itinerary"><h2>周五 · 11 月 06 日</h2><p>第一天 · 徐汇与黄浦江</p></div>
+        <section class="lower-grid" aria-label="当日行程与交通">
+          <article class="panel itinerary-panel" aria-labelledby="itinerary-title">
+            <div class="panel-heading"><div><h3 id="itinerary-title">今日安排</h3><p>按时间排序 · 可随时调整</p></div><button class="button" id="add-today-item" type="button" aria-label="添加今日安排">＋</button></div>
+            <div class="itinerary-row"><time class="time" datetime="08:30">08:30</time><div><p class="stop-title">武康路早餐与街区散步</p><p class="stop-copy">从安福路一带出发，预留 90 分钟慢逛。</p></div><span class="stop-tag">户外 · 轻松</span></div>
+            <div class="itinerary-row"><time class="time" datetime="11:00">11:00</time><div><p class="stop-title">上海博物馆东馆</p><p class="stop-copy">已预留半天，可按当日预约情况调整。</p></div><span class="stop-tag">室内 · 已规划</span></div>
+            <div class="itinerary-row"><time class="time" datetime="17:00">17:00</time><div><p class="stop-title">外滩步行至北外滩</p><p class="stop-copy">傍晚江边风较凉，建议带一件薄外套。</p></div><span class="stop-tag">户外 · 视天气</span></div>
+          </article>
+          <div class="side-stack">
+            <article class="panel transport-panel" id="transport" aria-labelledby="transport-title">
+              <div class="panel-heading"><div><h3 id="transport-title">交通安排</h3><p>出发前确认实时班次</p></div></div>
+              <div class="transport-status"><strong>市内交通</strong><span class="status-label">待补充</span></div>
+              <p>连接交通服务后可在这里查看路线、时长与数据来源。</p>
+            </article>
+            <article class="panel assistant-panel" aria-labelledby="assistant-title">
+              <div class="panel-heading"><div><h3 id="assistant-title">行程小助手</h3><p>基于当前计划提供建议</p></div></div>
+              <p>“周日有阵雨可能，可以把江边漫步与室内展览的顺序互换。”</p>
+              <a class="button" href="#weather">查看天气 <span aria-hidden="true">→</span></a>
+            </article>
+          </div>
+        </section>
+        <footer class="footer"><span>行旅 · 智能旅游助手</span><span>界面样例仅用于视觉评审，所有计划与数字均为静态示例</span></footer>
+      </main>
+    </div>
+    <dialog class="dialog" id="edit-dialog" aria-labelledby="edit-dialog-title">
+      <h2 id="edit-dialog-title">编辑计划名称</h2>
+      <form id="edit-form" method="dialog">
+        <label for="trip-name">计划名称</label>
+        <input id="trip-name" name="tripName" maxlength="32" value="上海慢游" autocomplete="off" required />
+        <div class="dialog-actions"><button class="button" value="cancel">取消</button><button class="button button-primary" id="save-name" value="save">保存名称</button></div>
+      </form>
+    </dialog>
+    <dialog class="dialog" id="item-dialog" aria-labelledby="item-dialog-title">
+      <h2 id="item-dialog-title">添加日程</h2>
+      <form id="item-form" method="dialog">
+        <label for="item-time">开始时间</label><input id="item-time" name="time" type="time" value="14:00" required />
+        <label for="item-title">安排名称</label><input id="item-title" name="title" maxlength="48" placeholder="例如：在街区喝杯咖啡…" autocomplete="off" required />
+        <div class="dialog-actions"><button class="button" value="cancel">取消</button><button class="button button-primary" id="save-item" value="save">添加到行程</button></div>
+      </form>
+    </dialog>
+    <p id="sample-live" class="skip-link" role="status" aria-live="polite"></p>
+    <script>
+      const editDialog = document.querySelector("#edit-dialog");
+      const itemDialog = document.querySelector("#item-dialog");
+      const sampleLive = document.querySelector("#sample-live");
+      const tripName = document.querySelector("#page-title");
+      document.querySelector("#edit-plan").addEventListener("click", () => {
+        document.querySelector("#trip-name").value = tripName.textContent;
+        editDialog.showModal();
+      });
+      document.querySelector("#edit-form").addEventListener("submit", (event) => {
+        if (event.submitter?.value !== "save") return;
+        const value = new FormData(event.currentTarget).get("tripName").toString().trim();
+        if (!value) return;
+        tripName.textContent = value;
+        document.querySelector(".breadcrumb strong").textContent = value;
+        sampleLive.textContent = "计划名称已更新";
+      });
+      const openItemDialog = () => itemDialog.showModal();
+      document.querySelector("#add-plan-item").addEventListener("click", openItemDialog);
+      document.querySelector("#add-today-item").addEventListener("click", openItemDialog);
+      document.querySelector("#item-form").addEventListener("submit", (event) => {
+        if (event.submitter?.value !== "save") return;
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const row = document.createElement("div");
+        row.className = "itinerary-row";
+        const time = document.createElement("time");
+        time.className = "time";
+        time.dateTime = formData.get("time").toString();
+        time.textContent = time.dateTime;
+        const details = document.createElement("div");
+        const title = document.createElement("p");
+        title.className = "stop-title";
+        title.textContent = formData.get("title").toString().trim();
+        const copy = document.createElement("p");
+        copy.className = "stop-copy";
+        copy.textContent = "已添加到今日行程。";
+        details.append(title, copy);
+        const tag = document.createElement("span");
+        tag.className = "stop-tag";
+        tag.textContent = "新安排";
+        row.append(time, details, tag);
+        document.querySelector(".itinerary-panel").append(row);
+        itemDialog.close();
+        event.currentTarget.reset();
+        sampleLive.textContent = "新安排已添加到今日行程";
+      });
+    </script>
+  </body>
+</html>

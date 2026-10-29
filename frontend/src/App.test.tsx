@@ -154,6 +154,23 @@ describe("App weather query", () => {
 });
 
 describe("App feature navigation", () => {
+  it("opens the assistant alongside the existing itinerary view without an automatic request", () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    activateDestination("hangzhou");
+
+    expect(screen.getByRole("button", { name: "行程" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "AI 助手" }));
+    expect(screen.getByRole("heading", { name: "AI 旅行助手" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "AI 助手" })).toHaveAttribute("aria-pressed", "true");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "行程" }));
+    expect(screen.getByRole("heading", { name: "旅行行程" })).toBeVisible();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("switches between weather, budget, and transport without triggering API requests", () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);

@@ -1,46 +1,39 @@
-# Weather Provider Gate 0 记录
+# Weather Provider Gate
 
-> 记录日期：2026-10-27（北京时间）  
-> 任务：WTH-00  主题：Open-Meteo 候选供应商用途、额度、能力与五城覆盖  
-> 结论：**Gate 0 未通过；保持 mock-only。** 本记录没有发起实时 API 请求，没有使用 API Key，也没有把文档能力写成真实覆盖证据。
+> Updated: 2026-10-29 (Asia/Shanghai)
+> Provider: Open-Meteo Forecast API
+> Scope: local non-commercial trial configuration and five one-day connectivity checks.
 
-## 1. 官方资料核对
+## Official terms checked
 
-| 项目 | 当前官方资料摘要 | 对本项目的结论 |
-|---|---|---|
-| Forecast horizon | Forecast API 文档说明默认 7 天，最多可请求 16 天；指定 daily 变量时需要提供 `timezone`。 | 可作为天气模块候选接口能力；不等于五城实际覆盖已验证。 |
-| Free API 用途 | Free API 仅限非商业使用；Terms 将教育内容列为可能的非商业用途示例，同时将商业产品／宣传活动列为商业用途。 | 本项目的比赛展示、公开展示、未来部署和商业推广边界尚未由项目负责人确认；因此不启用 live provider。 |
-| Free API 限额 | Terms／Pricing 当前列出 600 次／分钟、5,000 次／小时、低于 10,000 次／日，以及 300,000 次／月；超限或滥用可能被限制。 | 实现前必须保留调用预算、429 状态和不自动付费／切换规则。 |
-| 调用计数 | Pricing FAQ 说明，超过 10 个变量或超过两周的单地点请求可能按多个 API call units 计数。 | 16 日上限和不自动拆批仍需在服务中测试；真实额度尚未实测。 |
-| 数据许可 | Open-Meteo 说明天气数据使用 CC BY 4.0，需要适当署名并说明修改；数据服务不保证无错误或持续可用。 | UI 若未来使用该数据，必须保留 attribution；当前不对许可适用性作法律判断。 |
-| 坐标／响应 | Forecast API 接受 WGS84 latitude／longitude；provider 可能返回解析后的网格位置。 | 需要保留请求城市锚点和 provider resolved location，不能称为气象站实测。 |
+The following official pages were reachable and reviewed on 2026-10-29:
 
-官方来源（均于 2026-10-27 查阅）：
+- [Terms](https://open-meteo.com/en/terms)
+- [Pricing](https://open-meteo.com/en/pricing)
+- [Forecast API docs](https://open-meteo.com/en/docs)
+- [Data licence](https://open-meteo.com/en/licence)
 
-- https://open-meteo.com/en/docs
-- https://open-meteo.com/en/terms
-- https://open-meteo.com/en/pricing
-- https://open-meteo.com/en/licence
+The Free API is restricted to non-commercial use. Current terms list limits of 600 calls/minute, 5,000/hour, and less than 10,000/day. The pricing page says the free service has no uptime guarantee. Open-Meteo data is licensed under CC BY 4.0; attribution and an indication of modifications are required. The pricing page identifies subscriptions, advertisements, commercial products, and promotional activities as commercial use examples. No commercial-use permission is inferred for this project, competition presentation, public hosting, or launch. Obtain the appropriate licence before those uses.
 
-## 2. 五城与目标日期覆盖
+The adapter calls only `https://api.open-meteo.com/v1/forecast`, has no API key, sends at most the registered city coordinate and requested date range, and asks for six daily variables in `Asia/Shanghai` with Celsius, mm, and km/h units. The request has an 8-second timeout, one bounded retry for transient errors, and the existing 15-minute in-memory cache. The `.env` setting is ignored by Git and is local-only.
 
-| 城市 | registry ID | 实时请求 | 覆盖结论 |
-|---|---|---:|---|
-| 上海 | `shanghai` | 未执行 | 未验证 |
-| 苏州 | `suzhou` | 未执行 | 未验证 |
-| 无锡 | `wuxi` | 未执行 | 未验证 |
-| 嘉兴 | `jiaxing` | 未执行 | 未验证 |
-| 杭州 | `hangzhou` | 未执行 | 未验证 |
+## Controlled connectivity check
 
-没有执行真实天气请求，因此没有实际响应日期、网格坐标、高程、变量缺失或配额消耗证据。后续如获明确 live-test 授权，须另建脱敏覆盖矩阵，逐城记录请求日期、实际返回日期、缺失日期、变量可用性、provider 坐标、取数时间和状态。
+The project owner requested a non-commercial provider configuration. On 2026-10-29, one request per registered pilot city was made for the same single date, 2026-10-29. No API key was used. After starting the configured backend, one additional end-to-end Shanghai API check queried 2026-10-29 through 2026-10-31 and returned all three dates. Only summarized metadata is retained; raw payloads and request URLs are not recorded.
 
-## 3. Gate 决定
+| City | Result | Returned date | Missing metrics | Resolved grid coordinate | Elevation | Retrieved at (UTC) |
+|---|---|---|---|---|---:|---|
+| Shanghai | HTTP success | 2026-10-29 | none | 31.177504, 121.462550 | 7 m | 09:00:45Z |
+| Suzhou | HTTP success | 2026-10-29 | none | 31.318100, 120.572110 | 7 m | 09:00:47Z |
+| Wuxi | HTTP success | 2026-10-29 | none | 31.599297, 120.287420 | 4 m | 09:00:48Z |
+| Jiaxing | HTTP success | 2026-10-29 | none | 30.755710, 120.708380 | 9 m | 09:00:50Z |
+| Hangzhou | HTTP success | 2026-10-29 | none | 30.263618, 120.140510 | 11 m | 09:00:52Z |
 
-- `WTH-00`：**记录完成，但 Gate 结果为未通过／待项目负责人确认**。
-- `WTH-10` Open-Meteo adapter：**blocked**，不得实施或启用。
-- `WTH-11` 真实覆盖烟雾测试：**blocked**，需要新的明确 live-test 授权。
-- `WTH-01` 至 `WTH-09`：可以继续做禁网的契约、fixture、fake provider、API 状态和前端降级流程；这些结果只能证明流程行为，不能证明真实天气能力。
+The provider resolves city anchors to forecast grid coordinates; these are not weather-station observations. This check demonstrates only one-time connectivity and field mapping for the specified date. It does not establish ongoing availability, forecast accuracy, future coverage, quota headroom, or permission for commercial/public operation.
 
-## 4. 证据边界
+## Gate outcome
 
-本记录只保存公开资料摘要和“未执行实时请求”的状态，不保存 Key、真实请求 URL、个人数据、真实位置轨迹或原始 provider payload。官方条款可能更新；在任何真实接入前必须重新查看并更新本记录。
+- Adapter implementation and offline tests are complete (WTH-10).
+- The explicitly scoped five-city smoke check is complete (WTH-11, non-commercial trial scope only).
+- Local backend configuration is `APP_WEATHER_PROVIDER=open_meteo`; unset/blank remains unconfigured and makes no upstream request.
+- Production or public deployment remains gated on confirming the use is non-commercial or acquiring the required commercial licence, plus deployment-specific quota, monitoring, privacy, and availability controls.

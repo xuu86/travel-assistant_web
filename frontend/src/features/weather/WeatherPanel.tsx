@@ -186,6 +186,7 @@ export function WeatherPanel({ cityName, state }: WeatherPanelProps) {
               {source.url && <>{" · "}<a href={source.url} target="_blank" rel="noreferrer">查看来源</a></>}
               {" · "}取数时间：{formatDateTime(source.retrieved_at)}
               {source.attribution ? ` · ${source.attribution}` : ""}
+              {source.source_id === "open-meteo.forecast" && <>{" · "}<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0 许可</a></>}
             </p>
           )}
         </>

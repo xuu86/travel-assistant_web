@@ -87,6 +87,27 @@ describe("WeatherPanel", () => {
     expect(screen.getByRole("heading", { name: "雷暴伴小冰雹" })).toBeVisible();
   });
 
+  it("shows the provider attribution with live weather results", () => {
+    render(<WeatherPanel cityName="上海" state={{
+      status: "success",
+      data: {
+        ...partialData,
+        sources: [{
+          ...partialData.sources[0],
+          source_id: "open-meteo.forecast",
+          display_name: "Open-Meteo Forecast API",
+          attribution: "Weather data by Open-Meteo.com, licensed under CC BY 4.0.",
+          evidence_state: "unknown",
+        }],
+      },
+    }} />);
+
+    expect(screen.getByText(/Weather data by Open-Meteo.com, licensed under CC BY 4.0/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "CC BY 4.0 许可" })).toHaveAttribute(
+      "href", "https://creativecommons.org/licenses/by/4.0/",
+    );
+  });
+
   it.each([
     ["rate_limited", "查询暂受额度限制"],
     ["policy_unavailable", "服务权限暂不可用"],

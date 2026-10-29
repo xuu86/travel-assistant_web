@@ -13,7 +13,10 @@
 - Capability Map 已于 2026-10-27 确认：[Web Capability Map](Web-Capability-Map.md)。
 - `foundation`、`weather` 和 `budget` 的本地流程验收记录已完成，见 [foundation](docs/acceptance/foundation.md)、[weather](docs/acceptance/weather.md)、[budget](docs/acceptance/budget.md)。
 - `transport` fake-only 流程已按批准的 SPEC、计划和任务清单完成：[SPEC](docs/SPEC-transport.md)、[实施计划](tasks/transport/plan.md)、[任务清单](tasks/transport/todo.md)、[验收记录](docs/acceptance/transport.md)。航班／铁路／路线真实 provider 仍未接入或验证，E-002/E-004 尚未通过供应商 Gate。
+- `assistant` 模块已有离线/fake 流程和 OpenAI-compatible provider adapter：[SPEC](docs/SPEC-assistant.md)、[实施记录](docs/acceptance/assistant.md)。真实模型供应商、资格、价格、隐私条款、额度和质量仍待 E-007 核验；不配置密钥时接口返回 `unconfigured`。
+- `itinerary` 当前是前端内存中的手工草稿，不是服务端行程 API；刷新后不保留，也没有账号、owner scope 或跨设备同步。
 - 以上只表示对应模块的契约、交互或测试流程状态；不代表真实数据能力已验证，也不代表 Web 首版整体完成。其他首版模块仍须各自过规格、实现和验收门禁。
+- 当前可本机演示，尚无公网生产部署方案。公网发布门槛和 API 申请/配置清单见[生产上线准备清单](docs/production-launch-readiness.md)。
 - 不复制旧目录内未经验证的后端草稿作为本项目实现。
 
 ## 参考文档

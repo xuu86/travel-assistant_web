@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/assistant/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask the travel assistant */
+        post: operations["chat_api_assistant_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/budget/calculate": {
         parameters: {
             query?: never;
@@ -130,6 +147,48 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AssistantEvidence */
+        AssistantEvidence: {
+            /** Evidence Id */
+            evidence_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "weather" | "transport" | "hotel" | "activity" | "attraction";
+            source: components["schemas"]["SourceRef"];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "live" | "partial";
+            /** Summary */
+            summary: string;
+        };
+        /** AssistantResponse */
+        AssistantResponse: {
+            candidate_patch?: components["schemas"]["CandidatePatch"] | null;
+            error?: components["schemas"]["PublicError"] | null;
+            /** Message */
+            message: string;
+            /**
+             * Reply
+             * @default
+             */
+            reply: string;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /** Sources */
+            sources?: components["schemas"]["SourceRef"][];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "live" | "unconfigured" | "rate_limited" | "unavailable" | "policy_unavailable";
+        };
         /** BudgetSnapshot */
         BudgetSnapshot: {
             /** Cost Items */
@@ -177,6 +236,25 @@ export interface components {
             /** Trip Id */
             trip_id: string;
         };
+        /** CandidatePatch */
+        CandidatePatch: {
+            /** Budget Fen */
+            budget_fen?: number | null;
+            /** Destination */
+            destination?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Interests */
+            interests?: string[] | null;
+            /** Pace */
+            pace?: ("relaxed" | "balanced" | "full") | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Transport Mode */
+            transport_mode?: ("any" | "flight" | "rail" | "high_speed") | null;
+            /** Travelers */
+            travelers?: number | null;
+        };
         /** ChargeComponent */
         ChargeComponent: {
             /**
@@ -200,6 +278,31 @@ export interface components {
              * @enum {string}
              */
             inclusion_state: "included" | "excluded" | "unknown";
+        };
+        /** ChatMessage */
+        ChatMessage: {
+            /** Content */
+            content: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            /** Evidence */
+            evidence?: components["schemas"]["AssistantEvidence"][];
+            /** History */
+            history?: components["schemas"]["ChatMessage"][];
+            /**
+             * Include Trip Context
+             * @default false
+             */
+            include_trip_context: boolean;
+            /** Message */
+            message: string;
+            trip_context?: components["schemas"]["TripContext"] | null;
         };
         /** CityCenter */
         CityCenter: {
@@ -442,6 +545,11 @@ export interface components {
             /** Longitude */
             longitude: number;
         };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /** PlaceRef */
         PlaceRef: {
             /**
@@ -603,6 +711,38 @@ export interface components {
             /** Valid To */
             valid_to?: string | null;
         };
+        /** TripContext */
+        TripContext: {
+            /** Budget Fen */
+            budget_fen?: number | null;
+            /** Destination */
+            destination?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Interests */
+            interests?: string[];
+            /** Pace */
+            pace?: ("relaxed" | "balanced" | "full") | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Transport Mode */
+            transport_mode?: ("any" | "flight" | "rail" | "high_speed") | null;
+            /** Travelers */
+            travelers?: number | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
         /** WeatherDay */
         WeatherDay: {
             /**
@@ -696,6 +836,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    chat_api_assistant_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     calculate_api_budget_calculate_post: {
         parameters: {
             query?: never;

@@ -14,6 +14,7 @@ from app.modules.weather.providers.base import (
     WeatherProviderError,
     select_provider,
 )
+from app.modules.weather.providers.open_meteo import OpenMeteoWeatherProvider
 
 FIXTURE_PATH = Path(__file__).parents[1] / "fixtures" / "weather" / "payloads.json"
 
@@ -87,4 +88,8 @@ def test_fake_provider_error_is_explicit_and_never_returns_demo_payload() -> Non
 def test_unknown_provider_is_not_silently_replaced() -> None:
     with pytest.raises(WeatherProviderError, match="not registered"):
         select_provider("some-unknown-provider")
+
+
+def test_open_meteo_is_selected_only_when_explicitly_configured() -> None:
+    assert isinstance(select_provider("open_meteo"), OpenMeteoWeatherProvider)
 

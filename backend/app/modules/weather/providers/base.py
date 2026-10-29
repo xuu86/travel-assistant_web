@@ -51,11 +51,18 @@ class FakeWeatherProvider:
 
 
 def select_provider(
-    provider_id: str | None, *, fake: FakeWeatherProvider | None = None
+    provider_id: str | None,
+    *,
+    fake: FakeWeatherProvider | None = None,
+    timeout_seconds: float = 8.0,
 ) -> WeatherProvider | None:
     """Return only explicitly injected test fake; production defaults to no provider."""
     if provider_id in (None, "", "unconfigured"):
         return None
     if provider_id == "fixture.weather":
         return fake if fake is not None else FakeWeatherProvider()
+    if provider_id == "open_meteo":
+        from app.modules.weather.providers.open_meteo import OpenMeteoWeatherProvider
+
+        return OpenMeteoWeatherProvider(timeout_seconds=timeout_seconds)
     raise WeatherProviderError("unconfigured", "requested weather provider is not registered")

@@ -24,7 +24,7 @@ test("destination setup gates tools, preserves drafts, confirms reset, and reset
   await page.getByRole("button", { name: "开始规划" }).click();
   await expect(page.locator(".workspace-destination")).toHaveText("杭州");
   await page.getByRole("button", { name: "预算" }).click();
-  await expect(page.getByText("目的地：")).toContainText("杭州");
+  await expect(page.locator(".budget-destination")).toHaveText("目的地：杭州");
   await page.getByLabel("整趟总预算（元）").fill("6000");
   await page.getByRole("button", { name: "交通" }).click();
   await expect(page.getByRole("textbox", { name: /起点/ })).toHaveValue("");

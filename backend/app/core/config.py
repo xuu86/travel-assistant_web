@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.contracts import ContractModel, ResultState
 
 EnvironmentName = Literal["development", "test", "production"]
+WeatherProviderName = Literal["open_meteo"]
 
 
 class ProviderConfig(ContractModel):
@@ -50,8 +51,47 @@ class Settings(BaseSettings):
         "http://localhost:5173",
     )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    model_base_url: AnyHttpUrl | None = None
     model_name: str | None = Field(default=None, min_length=1, max_length=120)
     model_api_key: SecretStr | None = None
+    model_timeout_seconds: int = Field(default=30, ge=1, le=30)
+    weather_provider: WeatherProviderName | None = None
+
+    @field_validator("weather_provider", mode="before")
+    @classmethod
+    def normalize_weather_provider(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @field_validator("model_base_url", mode="before")
+    @classmethod
+    def validate_model_base_url(cls, value: object) -> object:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            return value
+        parts = urlsplit(value)
+        if (
+            parts.scheme not in {"http", "https"}
+            or parts.username is not None
+            or parts.password is not None
+            or parts.query
+            or parts.fragment
+        ):
+            raise ValueError(
+                "APP_MODEL_BASE_URL must use http or https and contain no credentials, "
+                "query, or fragment."
+            )
+        return value.rstrip("/")
+
+    @property
+    def assistant_model_configured(self) -> bool:
+        return bool(
+            self.model_base_url
+            and self.model_api_key
+            and self.model_api_key.get_secret_value().strip()
+            and self.model_name
+            and self.model_name.strip()
+        )
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
@@ -104,6 +144,12 @@ class Settings(BaseSettings):
             not origin.startswith("https://") for origin in self.allowed_origins
         ):
             raise ValueError("Production origins must all use HTTPS.")
+        if (
+            self.env == "production"
+            and self.model_base_url is not None
+            and urlsplit(str(self.model_base_url)).scheme != "https"
+        ):
+            raise ValueError("Production model endpoints must use HTTPS.")
         return self
 
     def provider(

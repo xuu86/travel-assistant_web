@@ -4,6 +4,9 @@ import { fetchWeatherForecast, WeatherApiError, type WeatherQuery } from "./feat
 import { WeatherPanel, type WeatherPanelState } from "./features/weather/WeatherPanel";
 import { BudgetPanel } from "./features/budget/BudgetPanel";
 import { TransportPanel } from "./features/transport/TransportPanel";
+import { ItineraryPanel } from "./features/itinerary/ItineraryPanel";
+import { AssistantPanel } from "./features/assistant/AssistantPanel";
+import type { components } from "./shared/api-contracts";
 import "./app.css";
 
 type CityOption = {
@@ -58,7 +61,7 @@ function safeWeatherError(error: unknown): WeatherApiError {
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState<"weather" | "budget" | "transport">("weather");
+  const [activeView, setActiveView] = useState<"weather" | "budget" | "transport" | "itinerary" | "assistant">("weather");
   const [selectedDestinationId, setSelectedDestinationId] = useState("");
   const [destination, setDestination] = useState<CityOption | null>(null);
   const [destinationError, setDestinationError] = useState<string | null>(null);
@@ -74,6 +77,23 @@ export function App() {
   const [weatherState, setWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
 
   const rangeDays = requestedDays(startDate, endDate);
+  const assistantEvidence: components["schemas"]["AssistantEvidence"][] =
+    weatherState.status === "success" &&
+    (weatherState.data.state === "live" || weatherState.data.state === "partial")
+      ? (weatherState.data.sources ?? [])
+        .filter((source) => source.evidence_state === "verified")
+        .map((source) => ({
+          evidence_id: `weather:${weatherState.data.request_id}:${source.source_id}`,
+          kind: "weather" as const,
+          state: weatherState.data.state as "live" | "partial",
+          summary: (weatherState.data.items ?? []).map((day) =>
+            `${day.date}: ${day.weather_code === null ? "天气现象待识别" : `天气代码 ${day.weather_code}`}，` +
+            `最高 ${day.temperature_max_c ?? "暂无"}°C，最低 ${day.temperature_min_c ?? "暂无"}°C，` +
+            `降水 ${day.precipitation_sum_mm ?? "暂无"} mm`,
+          ).join("；").slice(0, 2_000),
+          source,
+        }))
+      : [];
 
   useEffect(() => {
     const dialog = destinationDialogRef.current;
@@ -223,6 +243,8 @@ export function App() {
               <button type="button" aria-pressed={activeView === "weather"} onClick={() => setActiveView("weather")}>天气</button>
               <button type="button" aria-pressed={activeView === "budget"} onClick={() => setActiveView("budget")}>预算</button>
               <button type="button" aria-pressed={activeView === "transport"} onClick={() => setActiveView("transport")}>交通</button>
+              <button type="button" aria-pressed={activeView === "itinerary"} onClick={() => setActiveView("itinerary")}>行程</button>
+              <button type="button" aria-pressed={activeView === "assistant"} onClick={() => setActiveView("assistant")}>AI 助手</button>
             </nav>
             <dialog
               ref={destinationDialogRef}
@@ -329,6 +351,8 @@ export function App() {
             </div>
             <div className="workspace-view" hidden={activeView !== "budget"} key={`budget-${workspaceKey}`}><BudgetPanel destinationName={destination.name} /></div>
             <div className="workspace-view" hidden={activeView !== "transport"} key={`transport-${workspaceKey}`}><TransportPanel key={workspaceKey} initialDestination={destination.name} /></div>
+            <div className="workspace-view" hidden={activeView !== "itinerary"} key={`itinerary-${workspaceKey}`}><ItineraryPanel destinationName={destination.name} startDate={startDate} endDate={endDate} /></div>
+            <div className="workspace-view" hidden={activeView !== "assistant"} key={`assistant-${workspaceKey}`}><AssistantPanel destinationName={destination.name} startDate={startDate} endDate={endDate} evidence={assistantEvidence} /></div>
           </>
         )}
       </main>
@@ -340,7 +364,11 @@ export function App() {
             ? "天气模块仅展示已返回的实际日期覆盖"
             : activeView === "budget"
               ? "预算金额仅在本页计算，不连接报价平台"
-              : "交通服务未配置时不会显示演示班次或路线"}
+              : activeView === "transport"
+                ? "交通服务未配置时不会显示演示班次或路线"
+                : activeView === "itinerary"
+                  ? "行程草稿仅保存在当前页面，不连接订票或地图服务"
+                  : "AI 回答仅依据本轮明确提供的信息，条件建议不会自动应用"}
         </span>
       </footer>
     </div>

@@ -23,6 +23,7 @@ def test_defaults_are_localhost_only_and_have_no_secret() -> None:
         "http://localhost:5173",
     )
     assert settings.model_api_key is None
+    assert settings.weather_provider is None
     assert "MODEL_API_KEY" not in repr(settings)
 
 
@@ -39,10 +40,18 @@ def test_environment_values_are_loaded_from_app_prefixed_variables(
     assert settings.env == "test"
     assert settings.allowed_origins == ("http://localhost:4173",)
     assert settings.model_name == "fixture-model"
+    monkeypatch.setenv("APP_WEATHER_PROVIDER", "open_meteo")
+    settings = Settings(_env_file=None)
+    assert settings.weather_provider == "open_meteo"
     assert settings.model_api_key is not None
     assert settings.model_api_key.get_secret_value() == "fake-secret-for-test"
     assert "fake-secret-for-test" not in repr(settings)
     assert "fake-secret-for-test" not in settings.model_dump_json()
+
+
+def test_unknown_weather_provider_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, weather_provider="unknown")
 
 
 @pytest.mark.parametrize(

@@ -13,6 +13,7 @@ from app.core.config import Settings, get_settings
 from app.core.contracts import ErrorCode, PublicError
 from app.core.errors import ServiceError, to_public_error
 from app.core.request_context import RequestContextMiddleware
+from app.modules.assistant.router import router as assistant_router
 from app.modules.budget.router import router as budget_router
 from app.modules.foundation.router import router as foundation_router
 from app.modules.transport.router import router as transport_router
@@ -52,6 +53,7 @@ def _public_error_response(
 def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings if settings is not None else get_settings()
     application = FastAPI(title="行旅智能旅游助手 API", version="0.1.0", debug=False)
+    application.state.settings = app_settings
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(app_settings.allowed_origins),
@@ -62,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.add_middleware(RequestContextMiddleware)
     application.include_router(foundation_router)
+    application.include_router(assistant_router)
     application.include_router(budget_router)
     application.include_router(weather_router)
     application.include_router(transport_router)

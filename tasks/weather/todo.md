@@ -1,7 +1,7 @@
 # weather 任务清单
 
-> 版本：v0.1｜状态：mock-only 阶段验收完成（WTH-10/WTH-11 blocked）｜用户批准：2026-10-27  
-> 对应已批准文件：[SPEC-weather](../../docs/SPEC-weather.md)、[weather 实施计划](plan.md)。仅覆盖 `weather`；此清单获批后才实施标注为可执行的 mock-only 任务。真实 Open-Meteo 代码或网络调用需另外满足 Gate 0 与明确授权。
+> 版本：v0.2｜状态：非商业试用 provider 已配置；WTH-10/WTH-11 限定范围验收完成｜用户批准：2026-10-29
+> 对应已批准文件：[SPEC-weather](../../docs/SPEC-weather.md)、[weather 实施计划](plan.md)。真实 provider 结论仅适用于本次非商业试用与单日 smoke test，不构成商业／公网生产许可。
 
 ## 通用执行规则
 
@@ -82,21 +82,19 @@
 - **文件：** `frontend/e2e/weather.spec.ts`（1 个）。
 - **依赖：** WTH-08。
 
-### WTH-10 — 实现 Open-Meteo adapter（条件任务；不因本清单自动获准）
+### WTH-10 — 实现 Open-Meteo adapter
 
-- [ ] **执行条件：** WTH-00 Gate 0 已记录许可／额度／接入条件，且项目负责人另行明确批准使用该 provider；任务清单本身不构成 adapter 实现或 live 调用授权。条件未满足时保持 blocked，不实施 adapter。
-- [ ] **验收：** 仅使用固定官方 endpoint 和后端配置；不能由客户端提交 URL；变量、时区、单位、timeout、重试与额度按获批 SPEC；解析 provider 网格位置与实际日期；错误映射稳定；不在模块中泄漏 API Key；fixture 与 live 响应标记分开。若 Open-Meteo 未获批，需另行批准替代 provider SPEC 后再替代本任务。
-- **验证：** `uv run pytest tests/unit/test_open_meteo_adapter.py -q`，通过注入 httpx MockTransport／fixture 测试，不在自动化测试中出网；契约不一致时任务失败并修 fixture/代码，不猜字段。
-- **文件：** `backend/app/modules/weather/providers/open_meteo.py`、`backend/app/core/config.py`、`backend/tests/unit/test_open_meteo_adapter.py`（3 个）。
-- **依赖：** WTH-00、WTH-01 至 WTH-04；不满足执行条件则保持 blocked。
+- [x] **验收：** 固定官方 endpoint、仅由后端配置选择、daily 变量、`Asia/Shanghai` 和 metric 单位；设 8 秒 timeout、限长响应、稳定错误映射和署名；无需密钥；默认未配置时不出网。
+- [x] **验证：** MockTransport 覆盖参数、映射、null/missing、状态、超大／畸形响应和网络错误；后端全量 `uv run pytest -q` 262 项通过，`uv run ruff check .` 通过。
+- **文件：** `backend/app/modules/weather/providers/open_meteo.py`、`backend/app/core/config.py`、`backend/tests/unit/test_open_meteo_adapter.py`。
+- **依赖：** WTH-00、WTH-01 至 WTH-04；2026-10-29 用户批准非商业试用配置。
 
-### WTH-11 — 受控真实覆盖烟雾测试（单独 opt-in）
+### WTH-11 — 受控真实覆盖烟雾测试
 
-- [ ] **执行条件：** 需在该任务执行前另获明确 live-test 用户授权；限定 provider、五城／日期、次数、网络环境与证据保留方式；未获该授权时绝不运行。
-- [ ] **验收：** 按核准范围逐城记录实际返回日期段、缺失日、变量可用性、provider 网格坐标、取数时间、额度／状态及授权／署名；脱敏保存，不记录或提交 Key；数据结果只证实本次条件，不外推为长期可用性。
-- **验证：** 仅用单独人工运行记录，不加入全量自动化命令；若测试条件或许可状态变化即停止并报告。
+- [x] **验收：** 2026-10-29 按用户批准的非商业试用范围，对五个注册城市各发 1 次 2026-10-29 单日请求；记录日期、变量缺失、网格坐标和高程，不保存原始 payload；结果不外推。
+- [x] **验证：** 五城均成功且六项变量齐全；另有一次后端路由三日端到端验证。具体摘要见 `docs/acceptance/weather-provider.md`。官方非商业条款、限额、署名及无 uptime 保证见 `docs/weather-provider-gate.md`。
 - **文件：** `docs/acceptance/weather-provider.md`（1 个证据文件）。
-- **依赖：** WTH-00、WTH-10；必须单独 opt-in。
+- **依赖：** WTH-00、WTH-10；授权仅限非商业试用和上述五次单日请求。
 
 ### WTH-12 — 天气模块回归与分项验收记录
 
@@ -115,4 +113,6 @@
 
 - 2026-10-27：WTH-00 已完成记录。仅查阅官方公开资料，未发起实时天气请求；Open-Meteo 用途资格、五城实际覆盖和额度实测仍未确认。WTH-10/WTH-11 保持 blocked。
 - 2026-10-27：WTH-01 至 WTH-09 与 WTH-12 已完成 mock-only 实施、回归和分项验收；证据见 `docs/acceptance/weather.md`。真实 provider 未接入，WTH-10/WTH-11 继续 blocked。
+- 2026-10-29：后续用户明确要求非商业 API 配置，已完成 WTH-10/WTH-11 限定范围工作；本次状态覆盖上述历史 blocked 记录，具体用途和证据边界见 `docs/weather-provider-gate.md` 与 `docs/acceptance/weather-provider.md`。
+- 2026-10-29：按用户请求启用本地 Open-Meteo 非商业 provider；WTH-10 adapter 与 WTH-11 五城单日 smoke test 已完成。商业／公网生产许可仍需另行确认。
 

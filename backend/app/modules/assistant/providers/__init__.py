@@ -1,0 +1,1 @@
+"""Assistant model provider adapters."""

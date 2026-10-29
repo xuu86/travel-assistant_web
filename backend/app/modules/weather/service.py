@@ -13,6 +13,7 @@ from app.modules.weather.contracts import (
     WeatherResult,
 )
 from app.modules.weather.providers.base import WeatherProvider, WeatherProviderError
+from app.modules.weather.runtime import WeatherRuntime
 
 _PROVIDER_ERROR_MAP: dict[str, tuple[ResultState, ErrorCode, str]] = {
     "unconfigured": (ResultState.UNCONFIGURED, ErrorCode.UNCONFIGURED, "天气服务尚未配置。"),
@@ -48,6 +49,7 @@ def _date_ranges(dates: list[date]) -> list[tuple[date, date]]:
 class WeatherService:
     def __init__(self, provider: WeatherProvider | None, *, today: Callable[[], date]) -> None:
         self.provider = provider
+        self.runtime = WeatherRuntime(provider) if provider is not None else None
         self.today = today
 
     def forecast(self, query: WeatherQuery, *, request_id: UUID) -> WeatherResult:
@@ -79,7 +81,16 @@ class WeatherService:
             end_date=query.end_date,
         )
         try:
-            payload = self.provider.fetch(city, provider_query)
+            runtime = self.runtime
+            if runtime is None:
+                return self._empty_result(
+                    state=ResultState.UNCONFIGURED,
+                    error_code=ErrorCode.UNCONFIGURED,
+                    message="天气服务尚未配置。",
+                    location=location,
+                    request_id=request_id,
+                )
+            payload = runtime.fetch(city, provider_query)
         except WeatherProviderError as exc:
             state, error_code, message = _PROVIDER_ERROR_MAP.get(
                 exc.status,

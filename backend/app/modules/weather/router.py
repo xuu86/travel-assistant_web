@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from app.core.config import get_settings
 from app.core.contracts import PublicError
 from app.core.time import business_today
 from app.modules.weather.contracts import WeatherQuery, WeatherResult
+from app.modules.weather.providers.base import select_provider
+from app.modules.weather.runtime import REQUEST_TIMEOUT_SECONDS
 from app.modules.weather.service import WeatherService
 
 router = APIRouter(prefix="/api/weather", tags=["weather"])
@@ -13,7 +16,12 @@ router = APIRouter(prefix="/api/weather", tags=["weather"])
 def _service(request: Request) -> WeatherService:
     service = getattr(request.app.state, "weather_service", None)
     if service is None:
-        service = WeatherService(None, today=lambda: business_today())
+        settings = getattr(request.app.state, "settings", None) or get_settings()
+        provider = select_provider(
+            settings.weather_provider,
+            timeout_seconds=REQUEST_TIMEOUT_SECONDS,
+        )
+        service = WeatherService(provider, today=lambda: business_today())
         request.app.state.weather_service = service
     return service
 

@@ -1,6 +1,122 @@
 {
   "components": {
     "schemas": {
+      "AssistantEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "weather",
+              "transport",
+              "hotel",
+              "activity",
+              "attraction"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRef"
+          },
+          "state": {
+            "enum": [
+              "live",
+              "partial"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "kind",
+          "summary",
+          "state",
+          "source"
+        ],
+        "title": "AssistantEvidence",
+        "type": "object"
+      },
+      "AssistantResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_patch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidatePatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "maxLength": 240,
+            "title": "Message",
+            "type": "string"
+          },
+          "reply": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Reply",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRef"
+            },
+            "maxItems": 20,
+            "title": "Sources",
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "live",
+              "unconfigured",
+              "rate_limited",
+              "unavailable",
+              "policy_unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "request_id",
+          "message"
+        ],
+        "title": "AssistantResponse",
+        "type": "object"
+      },
       "BudgetSnapshot": {
         "additionalProperties": false,
         "properties": {
@@ -172,6 +288,122 @@
         "title": "BudgetSummary",
         "type": "object"
       },
+      "CandidatePatch": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_fen": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Fen"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "interests": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interests"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "enum": [
+                  "relaxed",
+                  "balanced",
+                  "full"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "transport_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "any",
+                  "flight",
+                  "rail",
+                  "high_speed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Mode"
+          },
+          "travelers": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travelers"
+          }
+        },
+        "title": "CandidatePatch",
+        "type": "object"
+      },
       "ChargeComponent": {
         "additionalProperties": false,
         "properties": {
@@ -232,6 +464,78 @@
           "amount_basis"
         ],
         "title": "ChargeComponent",
+        "type": "object"
+      },
+      "ChatMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessage",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantEvidence"
+            },
+            "maxItems": 20,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "maxItems": 12,
+            "title": "History",
+            "type": "array"
+          },
+          "include_trip_context": {
+            "default": false,
+            "title": "Include Trip Context",
+            "type": "boolean"
+          },
+          "message": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "trip_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest",
         "type": "object"
       },
       "CityCenter": {
@@ -985,6 +1289,19 @@
         "title": "GeometryPoint",
         "type": "object"
       },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "PlaceRef": {
         "additionalProperties": false,
         "properties": {
@@ -1555,6 +1872,155 @@
         "title": "SourceRef",
         "type": "object"
       },
+      "TripContext": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_fen": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Fen"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "interests": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Interests",
+            "type": "array"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "enum": [
+                  "relaxed",
+                  "balanced",
+                  "full"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "transport_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "any",
+                  "flight",
+                  "rail",
+                  "high_speed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Mode"
+          },
+          "travelers": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travelers"
+          }
+        },
+        "title": "TripContext",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
       "WeatherDay": {
         "additionalProperties": false,
         "properties": {
@@ -1829,6 +2295,47 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/assistant/chat": {
+      "post": {
+        "operationId": "chat_api_assistant_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ask the travel assistant",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
     "/api/budget/calculate": {
       "post": {
         "operationId": "calculate_api_budget_calculate_post",

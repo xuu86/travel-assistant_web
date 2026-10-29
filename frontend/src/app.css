@@ -149,8 +149,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 @media (max-width: 560px) {
   .app-shell { width: min(100% - 28px, 1180px); }
   .site-header { min-height: 70px; }
-  .feature-nav { width: 100%; }
-  .feature-nav button { flex: 1; }
+  .feature-nav { width: 100%; flex-wrap: wrap; }
+  .feature-nav button { flex: 1 1 18%; min-width: 0; padding: 0 8px; white-space: nowrap; }
   .header-note { font-size: 11px; }
   .hero { padding-top: 22px; }
   .hero h1 { font-size: clamp(36px, 12vw, 58px); }

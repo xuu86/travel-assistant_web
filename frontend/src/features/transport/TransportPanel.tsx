@@ -18,6 +18,7 @@ type EvidenceState = components["schemas"]["EvidenceState"];
 type FareOffer = components["schemas"]["FareOffer"];
 type RouteOption = components["schemas"]["RouteOption"];
 const EMPTY_PLACE: PlaceRef = { display_name: "", coordinate_system: "WGS84" };
+const IATA_PATTERN = /^[A-Za-z]{3}$/;
 
 type QueryState<T> =
   | { status: "unconfigured" }
@@ -228,6 +229,19 @@ function ResultNotice<T extends {
   );
 }
 
+function safeBookingUrl(value: string | null | undefined): boolean {
+  if (!value || value.includes("\\") || /\s/u.test(value) ||
+    [...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password &&
+      (!url.port || url.port === "443") &&
+      ["fliggy.com", "alitrip.com", "taobao.com", "tmall.com", "fly.ai"].some(
+        (root) => url.hostname === root || url.hostname.endsWith(`.${root}`),
+      );
+  } catch { return false; }
+}
+
 function FareCards({ data }: { data: FareResponse }) {
   const offers = data.items ?? [];
   if (offers.length === 0) return null;
@@ -253,8 +267,8 @@ function FareCards({ data }: { data: FareResponse }) {
               <strong>{formatServiceTime(offer.arrival_at, offer.arrival_timezone)}</strong>
             </div>
             <div className="transport-price-block">
-              <span className="transport-data-label">票价 · {offer.currency_code}</span>
-              <strong>{formatMoney(offer.price_fen)}</strong>
+              <span className="transport-data-label">票价{offer.price_fen != null ? ` · ${offer.currency_code}` : ""}</span>
+              <strong>{offer.mode === "rail" && offer.price_fen == null ? "票价未返回" : formatMoney(offer.price_fen)}</strong>
               <small>{priceBasisLabel(offer)} · {priceScopeLabel(offer)}</small>
             </div>
           </div>
@@ -274,6 +288,7 @@ function FareCards({ data }: { data: FareResponse }) {
                     </div>
                     <div>
                       <span>{segment.service_number ?? "班次编号待核实"}</span>
+                      {segment.seat_class && <small>席别：{segment.seat_class}</small>}
                       {segment.operating_carrier && <small>承运：{segment.operating_carrier}</small>}
                       {segment.transfer_place && <small>换乘地点：{segment.transfer_place}</small>}
                     </div>
@@ -281,6 +296,9 @@ function FareCards({ data }: { data: FareResponse }) {
                 ))}
               </ol>
             </div>
+          )}
+          {safeBookingUrl(offer.booking_url) && (
+            <a className="transport-booking-link" href={offer.booking_url ?? undefined} target="_blank" rel="noopener noreferrer">查看飞猪官方详情（新窗口）</a>
           )}
           <div className="transport-offer-meta">
             <span>可用性：{offer.availability === "available" ? "来源显示可用" : offer.availability === "unavailable" ? "来源显示不可用" : "待核实"}</span>
@@ -379,6 +397,8 @@ export function TransportPanel({
   const [origin, setOrigin] = useState<PlaceRef>(initialOrigin);
   const originWasEdited = useRef(false);
   const [destination, setDestination] = useState(initialDestination);
+  const [originIata, setOriginIata] = useState("");
+  const [destinationIata, setDestinationIata] = useState("");
   const [fareMode, setFareMode] = useState<FareQuery["mode"]>("flight");
   const [travelDate, setTravelDate] = useState("");
   const [adultCount, setAdultCount] = useState("1");
@@ -442,7 +462,7 @@ export function TransportPanel({
   }
 
   function buildPlace(name: string, place?: PlaceRef) {
-    if (place && name.trim() === place.display_name) return place;
+    if (place && name.trim() === place.display_name) return { ...place };
     return { display_name: name.trim(), coordinate_system: "WGS84" as const };
   }
 
@@ -474,9 +494,30 @@ export function TransportPanel({
       return;
     }
 
+    const originPlace = buildPlace(origin.display_name, origin);
+    const destinationPlace = buildPlace(destination);
+    if (fareMode === "flight") {
+      const normalizedOriginIata = originIata.trim().toUpperCase();
+      const normalizedDestinationIata = destinationIata.trim().toUpperCase();
+      if (!IATA_PATTERN.test(normalizedOriginIata) || !IATA_PATTERN.test(normalizedDestinationIata)) {
+        setFareFormError("航班查询必须填写明确的起飞机场和到达机场 IATA 三字码，例如 SHA / HGH。");
+        return;
+      }
+      if (normalizedOriginIata === normalizedDestinationIata) {
+        setFareFormError("起飞机场与到达机场不能相同。");
+        return;
+      }
+      if (totalPassengers > 9) {
+        setFareFormError("Amadeus 航班查询的成人加儿童总数不能超过 9 人。");
+        return;
+      }
+      originPlace.place_id = normalizedOriginIata;
+      destinationPlace.place_id = normalizedDestinationIata;
+    }
+
     const query: FareQuery = {
-      origin: buildPlace(origin.display_name, origin),
-      destination: buildPlace(destination),
+      origin: originPlace,
+      destination: destinationPlace,
       mode: fareMode,
       travel_date: travelDate,
       passenger_count: totalPassengers,
@@ -608,9 +649,43 @@ export function TransportPanel({
                 <input type="number" min="0" step="1" inputMode="numeric" value={childCount} onChange={(event) => { clearFareResults(); setChildCount(event.target.value); }} aria-describedby="transport-child-count-hint" />
                 <span className="transport-field__hint" id="transport-child-count-hint">可留空；儿童票规则和票价以服务商为准。</span>
               </label>
+              {fareMode === "flight" && (
+                <>
+                  <label className="transport-field">
+                    <span className="transport-field__label">起飞机场 IATA</span>
+                    <input
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      value={originIata}
+                      onChange={(event) => { clearFareResults(); setOriginIata(event.target.value); }}
+                      maxLength={3}
+                      pattern="[A-Za-z]{3}"
+                      required
+                      aria-describedby="transport-origin-iata-hint"
+                    />
+                    <span className="transport-field__hint" id="transport-origin-iata-hint">请输入明确机场代码，如 SHA；不会从城市名自动猜测。</span>
+                  </label>
+                  <label className="transport-field">
+                    <span className="transport-field__label">到达机场 IATA</span>
+                    <input
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      value={destinationIata}
+                      onChange={(event) => { clearFareResults(); setDestinationIata(event.target.value); }}
+                      maxLength={3}
+                      pattern="[A-Za-z]{3}"
+                      required
+                      aria-describedby="transport-destination-iata-hint"
+                    />
+                    <span className="transport-field__hint" id="transport-destination-iata-hint">请输入明确机场代码，如 HGH；代码会统一转为大写。</span>
+                  </label>
+                </>
+              )}
             </div>
             <div className="transport-search-form__footer">
-              <p className="transport-field__hint">价格和余量可能变化；页面不会代替购票平台下单。</p>
+              <p className="transport-field__hint">{fareMode === "rail" ? "铁路仅查询班次；来源不按人数报价，余量待核实。" : "价格和余量可能变化；页面不会代替购票平台下单。"}</p>
               <button className="transport-primary-button" type="submit" disabled={fareState.status === "loading"}>
                 {fareState.status === "loading" ? "正在查询…" : fareState.status === "error" ? "重试班次" : "查询班次"}
                 <span aria-hidden="true">→</span>
@@ -658,6 +733,9 @@ export function TransportPanel({
           </div>
           <ResultNotice state={fareState} kind="班次与票价" />
           {fareState.status === "result" && <FareCards data={fareState.data} />}
+          {fareState.status === "result" && fareState.data.platform_hint && (
+            <p className="transport-platform-hint">平台提示：{fareState.data.platform_hint}</p>
+          )}
         </div>
       ) : (
         <div className="transport-query-results">

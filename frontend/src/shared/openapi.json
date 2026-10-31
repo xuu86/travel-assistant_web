@@ -845,6 +845,18 @@
             "title": "Availability",
             "type": "string"
           },
+          "booking_url": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Url"
+          },
           "currency_code": {
             "default": "CNY",
             "pattern": "^[A-Z]{3}$",
@@ -1119,6 +1131,19 @@
             "title": "Message",
             "type": "string"
           },
+          "platform_hint": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Hint"
+          },
           "queried_at": {
             "format": "date-time",
             "title": "Queried At",
@@ -1233,6 +1258,19 @@
               }
             ],
             "title": "Origin Name"
+          },
+          "seat_class": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat Class"
           },
           "segment_id": {
             "maxLength": 120,

@@ -1,74 +1,86 @@
 # transport-live-provider 任务清单
 
-> 版本：v0.1｜状态：执行中（TLP-00 核查完成；两来源 Gate blocked）｜用户确认：2026-10-29
-> 对应已批准文件：[SPEC](../../docs/SPEC-transport-live-provider.md)、[实施计划](plan.md)。来源 Gate 未通过的 provider 不得编写/启用 live adapter；真实请求仍需单独授权。
+> 版本：v0.2｜状态：航班 adapter 与 mock 验收完成；真实数据/铁路/路线未完成｜更新：2026-10-30（北京时间）
+> 对应规格与计划：[SPEC](../../docs/SPEC-transport-live-provider.md)、[实施计划](plan.md)。代码接入不等于真实供应商授权或真实数据验收。
 
 ## 通用规则
 
-- 以当前工作树为基线，保留用户已有的 `child_count`、定位起点、assistant 及其他未提交改动。不要覆盖或整理无关差异。
-- 后端自动化测试默认禁网；真实 provider 测试使用 `httpx.MockTransport` 与合成响应。生产默认 provider 为空，不回退 fixture/demo。
-- 不复制上游 `baizhexue/fly-flight` 代码；该仓库未声明许可证。不得使用 `eval`、`exec`、shell 或 JavaScript runtime 执行远端内容，不得关闭 TLS 证书校验。
-- 不记录地点、日期、乘客构成、票价、车次、原始响应或凭证。日志/错误只允许稳定状态、provider id 和 request ID 等已批准信息。
-- 每项任务先补失败测试再实现；每项最多五个文件。任务结束后验证后再继续。
-- 条款/数据语义不通过的 provider 不实现或配置；一方 Gate 通过不自动授权另一方。
+- 保留用户已有的 `child_count`、定位起点、assistant 及其他未提交改动，不覆盖无关差异。
+- 后端测试默认禁网；live provider 测试使用 `httpx.MockTransport` 和合成响应，生产默认 provider 为空。
+- 不复制 `baizhexue/fly-flight` 代码；不执行远端 HTML/JS，不调用 12306 内部接口，不关闭 TLS。
+- 不记录地点、日期、乘客构成、票价、班次、原始响应、token 或凭据。日志/错误仅保留稳定状态、provider id、request ID 等批准字段。
+- 官方 API 优先；网页抓取不是当前实施方案。真实请求需单独 Gate 与 live smoke 授权。
 
-## 任务（按依赖顺序）
+## 已完成
 
-### TLP-00 — 供应商来源与用途 Gate（不调用班次/票价接口）
+### TLP-00 — 来源与用途 Gate
 
-- [x] **验收：** 已分别审阅同程、12306 官方页面并标注未有证据的自动化访问、展示、限流、价格字段、覆盖和地点映射结论；未从网页可访问性或上游 skill 描述推断授权。
-- [x] **验证：** 仅请求供应商法律/帮助/规程网页和项目首页；未调用班次/票价查询端点，未提交地点/日期/乘客信息。逐来源记录 Gate 结论和证据缺口。
-- [x] **文件：** `docs/transport-provider-gate.md`（1 个）。结果：同程、12306 均 BLOCKED；后续 live adapter 与 smoke 保持 deferred。
-- **依赖：** 用户已批准 SPEC 与计划。
+- [x] 分别审阅同程、12306 与官方航班 API 的可用边界；同程/12306 标为 BLOCKED，Amadeus 标为 CONDITIONAL。
+- [x] 未调用任何真实班次/票价查询接口，未创建或使用真实 Amadeus 凭据。
+- [x] 记录固定主机、授权缺口、价格语义、地点映射和 live smoke 前提。
+- [x] **文件：** `docs/transport-provider-gate.md`。
 
-### TLP-01 — 固定脱敏 payload 与映射测试
+### TLP-01 — Amadeus 合成 payload 与映射测试
 
-- [ ] **验收：** 为通过 Gate 的来源建立最小合成铁路 JSON 和/或同程服务端渲染 HTML 样例；定义仅基于已核验字段的 normalized mapping。测试日期/地点不匹配、单位未识别、字段缺失和畸形输入 fail closed；儿童票不支持时不可按成人结果冒充。样例不含真实用户查询或原始供应商响应。
-- [ ] **验证：** `uv run pytest tests/unit/test_fly_flight_provider.py -q`；Ruff 检查新增测试。无通过 Gate 的来源时，其对应 parser 测试/fixture 标明 deferred，不伪造通过。
-- [ ] **文件：** `backend/tests/unit/test_fly_flight_provider.py`、`backend/tests/fixtures/transport/fly_flight/rail_response.json`、`backend/tests/fixtures/transport/fly_flight/flight_page.html`（最多 3 个）。
-- **依赖：** TLP-00。
+- [x] 使用合成 Flight Offers Search payload 定义单程、CNY、整数分、party-total、travelerPricings 和 remaining seats 映射。
+- [x] 覆盖空/畸形响应、日期/机场不匹配、人数类型不匹配、币种/金额精度错误、未知 IANA 时区、OAuth 缓存、超时、连接错误、429、401/403、响应上限和敏感日志。
+- [x] 无法确认的金额置 null/unknown；未识别时区返回 partial，不猜测时间。
+- [x] **文件：** `backend/tests/unit/test_amadeus_provider.py`。
 
-### TLP-02 — 实现 12306 铁路 provider
+### TLP-02 — Amadeus 航班 Provider
 
-- [ ] **验收：** 仅在铁路 Gate 通过时实现固定 HTTPS 主机请求、默认 TLS 校验、受限 JSON/车站表解析、有限超时/响应大小、日期和地点映射、CNY 单位/价格语义、可用性及安全错误映射。儿童人数无法按已核实规则查询时返回 `policy_unavailable`。每项 Offer 的 source_id 与 SourceRef 一致；未知数据保持 null/unknown。
-- [ ] **验证：** `uv run pytest tests/unit/test_fly_flight_provider.py -q`；MockTransport 覆盖正常/空/畸形响应、超时、429、403、500、响应超限、单位、字段缺失、儿童人数、目标日期和 request_id；断言不产生实际网络访问。
-- [ ] **文件：** `backend/app/modules/transport/providers/rail_12306.py`、`backend/tests/unit/test_fly_flight_provider.py`（最多 2 个；依赖 TLP-01 样例）。
-- **依赖：** TLP-00、TLP-01；Gate 未通过则 deferred。
+- [x] 实现固定 test/production HTTPS 官方端点，默认 TLS 校验、关闭 redirect、禁用环境代理继承。
+- [x] 使用 Client Credentials token 短时缓存；凭据使用 `SecretStr`，不向上游发送 request ID。
+- [x] 实现严格 IATA、最多 9 人、ADULT/CHILD traveler 与 CNY party total 映射；搜索结果不宣称锁价/锁位。
+- [x] 401/403 → `policy_unavailable`，429 → `rate_limited`，其他上游错误 → `unavailable`。
+- [x] **文件：** `backend/app/modules/transport/providers/amadeus.py`。
 
-### TLP-03 — 实现同程航班 provider（严格 SSR 解析）
+### TLP-03 — Settings 与应用注入
 
-- [ ] **验收：** 仅在航班 Gate 通过且 SSR HTML 可稳定、安全解析时实现；固定主机、TLS 校验、限长响应、有限超时和安全字段映射。不得处理或执行 Nuxt JavaScript payload；页面结构变化时返回 `unavailable`，不回退脚本执行或合成结果。价格单位/基准无法确认时不输出数值票价。
-- [ ] **验证：** `uv run pytest tests/unit/test_fly_flight_provider.py -q`；MockTransport 覆盖 SSR 页面、缺字段、结构变更、脚本 payload 未执行、超时、状态码、响应超限、日期/地点校验和 source 关联；断言无外网请求。
-- [ ] **文件：** `backend/app/modules/transport/providers/tongcheng_public.py`、`backend/tests/unit/test_fly_flight_provider.py`（最多 2 个；依赖 TLP-01 样例）。
-- **依赖：** TLP-00、TLP-01；Gate/安全解析不通过则 deferred。
+- [x] 新增 `APP_TRANSPORT_FARE_PROVIDER=amadeus|空`、Amadeus env/ID/Secret/timeout/body limit 配置；空值归一为关闭。
+- [x] 只有 provider 与两项凭据完整显式配置时才构造 Provider；默认 Settings 不产生外部请求。
+- [x] 未知 provider/空白凭据/畸形配置 fail closed，不 fallback fixture 或其他来源。
+- [x] **文件：** `backend/app/core/config.py`、`backend/app/main.py`、`backend/app/modules/transport/runtime.py`、`backend/.env.example`、`backend/tests/unit/test_config.py`。
 
-### TLP-04 — 配置与应用注入
+### TLP-04 — API 接线与前端 IATA
 
-- [ ] **验收：** 增加窄 provider 设置并保持默认空值；显式设置后只注入 Gate 已通过且已实现的 mode provider。未知配置 fail closed，不选 fake、不切其他来源；route provider 继续不配置。`child_count` 与当前 PlaceRef 请求原样传递，所有配置/错误不泄露凭证。
-- [ ] **验证：** `uv run pytest tests/unit/test_config.py tests/integration/test_transport_live_provider.py -q`；默认启动和查询断言无网络请求，显式设置用 MockTransport 验证 wiring，未知设置/未通过来源不得开启请求。
-- [ ] **文件：** `backend/app/core/config.py`、`backend/app/main.py`、`backend/.env.example`、`backend/tests/unit/test_config.py`、`backend/tests/integration/test_transport_live_provider.py`（5 个）。
-- **依赖：** TLP-02 和/或 TLP-03；仅接入通过 Gate 的 mode。
+- [x] 航班表单新增起降机场 IATA；小写转大写；同机场、缺 IATA、人数 > 9 时前端阻断；铁路不要求 IATA。
+- [x] IATA/日期/人数/交通方式变化会清除旧结果，迟到响应不能覆盖新查询。
+- [x] API 集成测试通过注入 MockTransport 验证默认 `unconfigured`、完整映射、429 公共错误和 request ID。
+- [x] **文件：** `backend/tests/integration/test_transport_live_provider.py`、`frontend/src/features/transport/TransportPanel.tsx`、`frontend/src/features/transport/TransportPanel.test.tsx`、`frontend/e2e/transport.spec.ts`。
 
-### TLP-05 — 集成隐私与全量回归
+### TLP-05 — 全量回归与验收记录
 
-- [ ] **验收：** API 响应符合已有 FareResult/FareOffer；每个结果日期、mode、人数语义匹配 query，来源可追溯，`live`/`partial`/失败状态一致。地点、日期、金额、车次、provider payload sentinel 不进入日志/错误；OpenAPI 无 schema 变化，除非实现发现契约缺口（契约缺口先回到 SPEC 审批）。更新 transport 验收记录，明确代码接入与真实能力状态分开。
-- [ ] **验证：** `uv run pytest -q`、`uv run ruff check .`；前端 `npm run test:unit -- --run`、`npm run typecheck`、`npm run lint`、`npm run build`；检查默认禁网和 Secretlint。仅 mock 的通过不得标成真实数据验证。
-- [ ] **文件：** `backend/tests/integration/test_transport_live_provider.py`、`docs/acceptance/transport.md`（最多 2 个；共享集成测试按 TLP-04 后扩展）。
-- **依赖：** 已获批来源的 TLP-02/TLP-03、TLP-04。
+- [x] 后端：`309 passed`；Ruff `All checks passed`。
+- [x] 前端：Vitest `77 passed`；TypeScript、ESLint、Vite production build 通过；Playwright `36 passed`（桌面 + Pixel 7）。
+- [x] 航班 E2E 验证小写 IATA 在上游 body 转大写、价格 `¥355.34`、班次 `MU1234`，并检查移动端/横屏无水平溢出。
+- [x] 更新验收记录，明确 mock 验证不等于真实供应商数据验收。
+- [x] **文件：** `docs/acceptance/transport.md`。
 
-### TLP-06 — 受控 live smoke（独立授权条件任务）
+## 未完成且阻塞
 
-- [ ] **验收：** 仅在对应来源 Gate 通过且用户另行确认测试地点/日期/次数/运行环境后，按批准范围进行有限真实查询。分别核实来源、覆盖、时间、票价单位和价格基准；脱敏留证，不保存原始响应、用户位置或完整班次响应，不扩大测试范围。
-- [ ] **验证：** 在 `docs/acceptance/transport.md` 记录 provider、请求条件范围、查询时间、脱敏结果摘要和异常；live 结果必须可对应当前 query。未授权或 Gate 未通过则保持未执行/blocked，不以 mock 替代。
-- [ ] **文件：** `docs/acceptance/transport.md`（1 个）。
-- **依赖：** TLP-00、TLP-05、额外的 live request 明确授权；无授权时不执行。
+### TLP-06 — Amadeus 受控 live smoke
 
-## 审批记录
+- [ ] **阻塞：** 未提供可授权使用的 Amadeus 账户/环境，未确认生产资格、商业条款、目标航线覆盖、CNY/税费/儿童口径、配额/缓存/署名和最终确认价语义。
+- [ ] **需要用户单独确认：** 测试机场/日期、请求次数、运行环境、脱敏证据范围。
+- [ ] **验收：** 按批准范围发起有限真实查询，分别记录来源、覆盖、时间、金额语义与异常；不保存原始响应或完整班次响应；不宣称为锁价/锁位。
+- **依赖：** TLP-00 至 TLP-05、Gate 补证、单独 live 授权。当前不执行。
 
-- 对应 SPEC：用户于 2026-10-29 批准。
-- 对应计划：用户于 2026-10-29 批准。
-- 本清单：用户于 2026-10-29 确认开始执行；仅开始 TLP-00 Gate 审阅，未授权编码或真实查询。
+### TLP-R1 — 铁路 / 高铁 Provider
 
-## 执行记录
+- [ ] **阻塞：** 12306 网页/内部接口没有获批的第三方 API 契约；同程/上游 skill 也不授权铁路数据抓取。当前没有正式 Railway Provider。
+- [ ] **解法：** 选择具有授权、稳定文档和再展示许可的铁路数据供应商；另立配置名、映射测试、票价/余票/席别/儿童/Gate 和 live smoke 任务。
+- [ ] **状态：** BLOCKED / deferred；不得复用 Amadeus 配置，也不得以合成 fixture 冒充真实铁路数据。
 
-- 2026-10-29：TLP-00 官方资料审阅完成；同程和 12306 均 BLOCKED。详见 `docs/transport-provider-gate.md`。TLP-01 至 TLP-06 未开始；不得发真实交通查询请求。
+### TLP-R2 — 公交 / 地铁 / 步行 / 出租车路线
+
+- [ ] **阻塞：** `fly-flight` 不含市内路线能力；当前没有已核验路线供应商、许可、额度、几何/时长/计价语义。
+- [ ] **解法：** 独立选择路线供应商并新增规格、配置与 Gate；不得自动用直线、估算路径或出租车价格替代其他 mode。
+- [ ] **状态：** deferred。
+
+## 当前结论
+
+- 航班：官方 Amadeus adapter 已实现并接入，但默认关闭，真实数据未验收。
+- 铁路：未接通。
+- 公交、地铁、步行、出租车：未接通。
+- 任何 mock/E2E 通过均只证明契约、映射、界面和故障隔离，不代表供应商生产可用。

@@ -411,6 +411,8 @@ export interface components {
              * @enum {string}
              */
             availability: "available" | "unavailable" | "unknown";
+            /** Booking Url */
+            booking_url?: string | null;
             /**
              * Currency Code
              * @default CNY
@@ -497,6 +499,8 @@ export interface components {
              * @default
              */
             message: string;
+            /** Platform Hint */
+            platform_hint?: string | null;
             /**
              * Queried At
              * Format: date-time
@@ -527,6 +531,8 @@ export interface components {
             operating_carrier?: string | null;
             /** Origin Name */
             origin_name?: string | null;
+            /** Seat Class */
+            seat_class?: string | null;
             /** Segment Id */
             segment_id: string;
             /** Service Number */

@@ -1,81 +1,101 @@
-# SPEC-transport-live-provider：真实航班与铁路票价 Provider 扩展
+# SPEC-transport-live-provider：真实交通票价 Provider 扩展
 
-> 版本：v0.1｜状态：待审批｜日期：2026-10-29（北京时间）
-> 本规格扩展已批准的 `transport` 模块，不替代 [SPEC-transport](SPEC-transport.md)。批准本文仅授权进入计划阶段；真实供应商调用、数据展示及启用仍须通过对应 Gate。
+> 版本：v0.2｜状态：已批准｜原批准：2026-10-29｜执行口径更新：2026-10-30（北京时间）
+> 本规格扩展已批准的 [SPEC-transport](SPEC-transport.md)，不替代该规格。官方 API 优先；网页抓取不是实施前提。代码接入、真实供应商调用和真实数据验收是三个不同结论，不得互相替代。
 
 ## 1. 目标与范围
 
-在现有 `FareProvider` 边界实现一个可选的真实票价 provider，参考 `baizhexue/fly-flight` 展示的公开来源：同程国内航班公开页面、12306 公开铁路班次/票价接口。结果映射为现有 `FareOffer` 与 `FareResult`；不直接安装 OpenClaw skill，也不把该仓库未声明许可的代码复制进本项目。provider 未显式启用时继续返回 `unconfigured`。
+在现有 `FareProvider` 边界内，以服务端显式配置接入可审计的官方交通数据 Provider，并把结果保守映射到现有 `FareResult` / `FareOffer` 契约。
 
-本次只覆盖航班和铁路/高铁的跨城查询。该 skill 不提供公交、地铁、步行或出租车路线，因此 `/api/transport/routes/search` 保持现状，不伪称已接入。查询仍只读，不预订、不支付、不跳转售票网站。
+当前获批的首个条件方案是 **Amadeus Flight Offers Search**：只查询单程航班，只接受三字 IATA 机场代码，只展示供应商返回的班次、报价与可售座位信息。`baizhexue/fly-flight` 仅用于理解航班/铁路查询能力边界；本项目不复制其代码，不安装或执行其 OpenClaw skill，也不依赖其对同程页面或 12306 内部接口的抓取实现。
 
-## 2. 接入和数据契约
+范围边界：
 
-- 配置使用窄枚举 `APP_TRANSPORT_FARE_PROVIDER=fly_flight`；默认空值，不允许 `auto`、静默 fallback 或 fixture 生产回退。票价 provider 与路线 provider 分开配置。
-- 请求日期必须来自 `FareQuery.travel_date`。地点仅接受可明确映射到来源机场/车站的名称或稳定代码；禁止用城市中心坐标猜测机场/车站。无法唯一解析时返回 `no_coverage`，不得猜测。
-- `SourceRef` 分别标识同程公开航班页与 12306 公开查询来源，带安全的无查询参数 URL、抓取时间、署名（仅在核实后填写）和保守 evidence state。每个 offer 必须关联来源。
-- 所有金额先按供应商原始单位、币种和舍入规则核实，再转换为 CNY 整数分。不能证明单位或计价基准的金额必须为 null/unknown；不得抽取数字后直接假设精度、乘人数、合并税费或将空值改为 0。
-- 航班/铁路班次时间按来源提供的当地时间解析为 `Asia/Shanghai`，并保留时区；缺失字段使用 null 和 `missing_fields`。只有契约必需事实齐全、来源证据等级满足要求的结果可为 `live`；字段不全使用 `partial`，不能编造补齐。
-- 12306 当前候选请求只表示成人查询。若 `child_count > 0` 而该来源不提供可验证的儿童票查询语义，返回明确的 `policy_unavailable`，不得把儿童当成人查询。
+- 航班：Amadeus 官方 API adapter，条件启用；默认关闭。
+- 铁路 / 高铁：未接入。必须使用具有正式授权和稳定契约的独立 Railway Provider；12306 网页或内部接口不作为生产来源。
+- 公交、地铁、步行、出租车 / 驾车：未接入。`/api/transport/routes/search` 维持现状，不伪称已有真实路线能力。
+- 查询只读；不预订、不支付、不锁价、不锁位、不跳转售票网站。
+
+## 2. 配置与数据契约
+
+- `APP_TRANSPORT_FARE_PROVIDER` 只允许 `amadeus` 或空值，默认空值。只有 provider、Client ID、Client Secret 三项均显式配置时才构造航班 Provider；否则返回 `unconfigured`，不允许 `auto`、网页 fallback、fixture fallback 或静默切换来源。
+- `APP_TRANSPORT_AMADEUS_ENV` 只允许 `test` / `production`，分别固定到以下官方 HTTPS 主机：
+  - `test.api.amadeus.com`
+  - `api.amadeus.com`
+- 航班请求必须由用户填写起降机场 IATA。不得从城市名、地址或浏览器坐标猜测机场；无法提供 IATA 时前端阻止请求，后端返回 `no_coverage`。
+- 日期必须来自 `FareQuery.travel_date`。成人加儿童总人数不得超过 9，且至少 1 名成人；儿童人数按 `CHILD` traveler 传递，不能把儿童静默当作成人。
+- 每个 offer 必须带 `SourceRef`、请求 ID 和保守 evidence state。搜索结果展示的是查询时报价，不能表述为最终可购票价或余票锁定。
+- 金额只接受 CNY、最多两位小数，并精确转为整数分。offer 总价必须等于全部 `travelerPricings` 合计，且 traveler 类型数量必须与查询一致；不满足时金额置 `null`/`unknown`，不得估算、乘人数或补 0。
+- 搜索结果使用 `price_basis=party_total`、`price_scope=entire_journey`。用户最终支付价仍需供应商的价格确认/预订流程；本模块不实现该流程。
+- Amadeus 返回的机场本地时间必须通过受控 IANA 时区表转换。当前 IANA 表未覆盖的机场返回 `partial`，相关时间/时区字段保留 `null`，不得按 `Asia/Shanghai` 或 UTC 猜测。
+- 铁路若未来接入，必须使用独立配置名称和独立 Gate；儿童票语义无法证明时返回 `policy_unavailable`，不得复用 Amadeus 航班配置。
 
 ## 3. 安全与可靠性要求
 
-- HTTPS 必须执行证书校验；禁止关闭 TLS 校验。
-- 禁止用 `eval`、`exec`、shell 或 JavaScript runtime 执行远端 HTML/脚本。HTML/JSON 只能由受限解析器解析；格式不符合预期时 fail closed。
-- 目标主机固定为已核实的供应商主机；关闭不受限重定向，设置有限连接/读取超时、最大响应字节数和可测并发/请求频率。仅把 429 映射为限流；供应商拒绝/权限错误映射为政策不可用；无效响应映射为 unavailable。
-- 请求地点、乘客构成、票价、班次及原始响应不写日志、错误体、URL、遥测或前端 console；不持久化/缓存原始响应。错误只记录 request ID、provider、状态与异常类型。
-- 不接受客户端传入任意 URL、文件路径、HTTP 头或 provider 参数；测试 fixture 仅通过依赖注入使用。
-- API 默认不触网。启用 provider 是服务端显式配置；配置验证不得将真实凭证或响应内容回显。
+- 所有请求执行 TLS 证书校验；禁止 `verify=False`、绕过代理安全设置或跟随不受控重定向。
+- 固定官方主机，只使用服务端构造的 query 参数；不接受客户端传入 URL、文件路径、任意 Header、供应商凭据或额外 provider 参数。
+- 设置有限连接/读取超时与响应体上限；畸形 JSON、超时、连接错误、超大响应均 fail closed。
+- OAuth token 可短时缓存，并在过期前刷新；凭据使用 `SecretStr`，不得进入日志、错误、响应、OpenAPI、构建产物或前端。
+- 401/403 映射 `policy_unavailable`，429 映射 `rate_limited`，其他上游错误映射 `unavailable`；不得把失败伪装成空结果或 demo 数据。
+- 请求地点、日期、乘客构成、班次、票价、token 和上游正文不得写入日志或错误体。测试 fixture 只能通过依赖注入使用，默认测试与启动路径不得触网。
+- 真实调用仍有频率、缓存、署名、展示期限、商业用途和供应商条款约束；代码默认关闭不代表生产资格已通过。
 
-## 4. 外部核验 Gate（编码前/真实调用前须有证据）
+## 4. 外部核验 Gate
 
-项目台账 E-004 当前状态为“未找到已验证方案”。以下事项未核实，不得更新为实测通过，也不得在生产默认启用：
+项目台账 E-004 仍不能标记为“已验证真实数据方案”。当前状态如下：
 
-1. 同程页面和 12306 各公开接口的当前使用条款、自动化访问限制、用途/再展示许可与署名要求；`fly-flight` 上游仓库没有声明许可证，因此本项目只允许独立编写适配，不复制上游实现。
-2. 实际覆盖、班次日期范围、票价与座位字段语义、货币/精度、价格是否单人、税费包含情况及数据新鲜度。
-3. 访问频率/限流、账号或资格要求、隐私传输和是否允许用于本项目场景。
-4. 五个试点城市及常见机场/车站到供应商稳定代码的明确映射；有歧义时需用户选择，不能自动替代地点。
+1. **Amadeus：CONDITIONAL。** 官方 Self-Service API 可用于条件实现和 mock 验收；生产资格、商业条款、目标航线覆盖、CNY 计价、儿童票年龄口径、配额、缓存/展示/署名要求、最终确认价语义及 live smoke 尚未完成项目级核验。
+2. **同程公开页面：BLOCKED。** 未取得允许自动化抓取并在本项目再展示航班/价格数据的明确依据；页面数据字段语义和频率限制也未被证明。上游仓库无可见许可证，不复制其实现。
+3. **12306 网页/内部接口：BLOCKED。** 未取得面向第三方程序化查询的官方 API 授权、稳定字段契约和限额；不得以网页可访问或 HTTP 200 代替授权。
+4. **市内路线：BLOCKED / deferred。** 需要独立路线供应商、许可、额度、署名、计价语义和单独规格，不属于本规格。
 
-Gate 记录需附核验日期、官方来源链接、适用条件及脱敏实测摘要。用户提出接入请求不替代条款、来源和数据语义核验。
+Gate 记录需附核验日期、官方链接、适用条件及脱敏证据。用户批准接入任务不等于供应商生产资格、真实数据展示权或 live smoke 已通过。
 
 ## 5. 验收
 
-- provider 映射单元测试全用合成响应/mock HTTP，不触网；覆盖校验失败、TLS 默认校验、响应超限、超时、429、权限错误、空结果、价格单位错误、字段缺失、儿童人数、来源关联和 request ID。
-- 集成测试验证默认未配置、不产生网络请求；显式 provider 配置后使用注入 mock transport 验证 API 到 provider 的完整映射与错误隔离。
-- 检查日志、响应、OpenAPI 和构建产物不含原始地点/响应/凭证；跑 transport 全量测试、Ruff 和前端回归。
-- 真实数据验收独立于代码测试：通过 Gate 后，在用户明确指定的测试条件下发起真实请求，记录查询时间、日期/地点覆盖、脱敏班次与金额语义。未实测前只记“provider adapter 已实现/真实数据未验证”。
+- Provider 单元测试全部使用合成 Amadeus payload 与 `httpx.MockTransport`，覆盖正常/空结果、畸形 JSON、超时、连接错误、429、401/403、响应超限、日期/机场/人数校验、币种/精度、旅客合计、未知机场时区、OAuth 缓存与敏感日志。
+- 集成测试验证默认 Settings 不产生外部请求；显式完整配置时通过注入 client 验证 API → Service → Provider 的完整映射、错误隔离和 request ID。
+- 前端测试验证航班必须填写 IATA、自动转大写、同机场/超 9 人阻断、铁路不要求 IATA、条件变化清除旧结果；E2E 只拦截同源 API，不向 Amadeus 发请求。
+- 全量测试、类型检查、Lint、构建、Ruff 和 Secretlint 通过只证明代码与 mock 流程，不证明真实供应商数据已验收。
+- 真实数据验收必须在 Gate 补充证据且用户单独给出测试地点、日期、次数和环境后进行；未执行前只能写“adapter 已实现 / 真实数据未验证”。
 
-## 6. 项目结构建议
+## 6. 当前项目结构
 
 ```text
 backend/app/modules/transport/providers/
-  fly_flight.py                 # 同程/12306 隔离适配与窄解析器
+  amadeus.py                    # 官方 Flight Offers Search 隔离适配
+backend/app/modules/transport/
+  runtime.py                    # 依据完整服务端配置构造 Provider
 backend/tests/unit/
-  test_fly_flight_provider.py   # 合成 payload 与 mock HTTP
+  test_amadeus_provider.py      # 合成 payload 与 MockTransport
 backend/tests/integration/
   test_transport_live_provider.py
 docs/acceptance/
-  transport.md                  # provider 流程与真实能力分开记录
+  transport.md                  # 代码验收与真实能力分开记录
 ```
 
-依赖优先复用现有 `httpx`、标准库和现有 Pydantic 契约；若安全解析真实页面需要新增依赖，须在计划中评估许可、维护状态和 Python 3.14 兼容性后再批准。
+依赖复用现有 `httpx`、标准库和 Pydantic 契约。不得为绕过官方 API 而引入网页自动化、浏览器脚本执行、TLS 绕过或 12306 内部接口依赖。
 
-## 7. 命令
+## 7. 验证命令
 
 ```powershell
 # backend/
-uv run pytest tests/unit/test_fly_flight_provider.py tests/integration/test_transport_live_provider.py -q
-uv run ruff check app/modules/transport tests/unit/test_fly_flight_provider.py tests/integration/test_transport_live_provider.py
+uv run pytest tests/unit/test_amadeus_provider.py tests/unit/test_config.py tests/integration/test_transport_live_provider.py -q
+uv run ruff check .
 uv run pytest -q
 
 # frontend/
-npm test -- --run
-npm run build
+./node_modules/.bin/vitest.cmd --run
+./node_modules/.bin/tsc.cmd --noEmit
+./node_modules/.bin/eslint.cmd .
+./node_modules/.bin/vite.cmd build
+./node_modules/.bin/playwright.cmd test
 ```
 
-## 8. 待确认事项
+## 8. 仍待确认
 
-- 是否接受“该上游仓库无许可证，不复制代码；本项目只独立实现经过核验的公开来源适配”这一边界。
-- 若 Gate 通过，是否先只启用铁路，还是同程航班和铁路都启用；当前同程 HTML 包含可执行 Nuxt payload，必须先找到并验证不执行远端代码的解析方式。
-- 交通票价真实请求尚需明确测试地点/日期；同意集成不意味着对最终用户查询默认启用。默认保持关闭。
-- 市内路线需另找独立供应商并单独核验，本规格不覆盖。
+- Amadeus 生产账户/环境资格、适用条款、配额、航线覆盖、展示与缓存规则。
+- CNY 报价、税费包含项、儿童年龄口径和最终确认价；搜索结果不能替代确认流程。
+- 机场 IATA 与 IANA 时区的完整受控目录，以及城市到机场歧义时的用户选择流程。
+- 正式 Railway Provider 的授权、接口契约、票价/余票/儿童票语义和 live smoke。
+- 公交、地铁、步行、出租车 / 驾车路线的独立供应商与单独 Gate。

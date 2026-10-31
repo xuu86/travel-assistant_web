@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from datetime import date, datetime
 from typing import Literal
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, field_validator, model_validator
@@ -52,6 +53,27 @@ _ROUTE_MISSING_FIELDS = {
     "duration_basis",
     "fare_basis",
 }
+
+
+def validate_fare_booking_url(value: str | None) -> str | None:
+    """Permit supplier detail links only on explicit official HTTPS domains."""
+    if value is None:
+        return None
+    if len(value) > 4096 or any(ord(char) <= 32 or ord(char) == 127 for char in value):
+        raise ValueError("Invalid supplier detail URL.")
+    parts = urlsplit(value)
+    hostname = parts.hostname or ""
+    roots = ("fliggy.com", "alitrip.com", "taobao.com", "tmall.com", "fly.ai")
+    if (
+        parts.scheme != "https"
+        or parts.username is not None
+        or parts.password is not None
+        or parts.port not in (None, 443)
+        or "\\" in value
+        or not any(hostname == root or hostname.endswith("." + root) for root in roots)
+    ):
+        raise ValueError("Untrusted supplier detail URL.")
+    return value
 
 
 def _require_nonblank(value: str | None, *, field_name: str) -> str | None:
@@ -209,6 +231,7 @@ class FareSegment(ContractModel):
     departure_timezone: str | None = None
     arrival_timezone: str | None = None
     service_number: str | None = Field(default=None, max_length=80)
+    seat_class: str | None = Field(default=None, min_length=1, max_length=120)
     operating_carrier: str | None = Field(default=None, max_length=160)
     transfer_place: str | None = Field(default=None, max_length=240)
 
@@ -216,6 +239,7 @@ class FareSegment(ContractModel):
         "origin_name",
         "destination_name",
         "service_number",
+        "seat_class",
         "operating_carrier",
         "transfer_place",
     )
@@ -292,6 +316,12 @@ class FareOffer(ContractModel):
     remaining_seats: int | None = Field(default=None, ge=0)
     evidence_state: EvidenceState
     missing_fields: list[str] = Field(default_factory=list)
+    booking_url: str | None = Field(default=None, max_length=4096)
+
+    @field_validator("booking_url")
+    @classmethod
+    def validate_booking_url(cls, value: str | None) -> str | None:
+        return validate_fare_booking_url(value)
 
     @field_validator("travel_date", mode="before")
     @classmethod
@@ -541,7 +571,7 @@ class _TransportResult[T](ResultEnvelope[T]):
 
 
 class FareResult(_TransportResult[FareOffer]):
-    pass
+    platform_hint: str | None = Field(default=None, min_length=1, max_length=2000)
 
 
 class RouteResult(_TransportResult[RouteOption]):

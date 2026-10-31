@@ -86,6 +86,8 @@ function jsonResponse(body: unknown, status = 200) {
 function fillFareQuery() {
   fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "上海虹桥" } });
   fireEvent.change(screen.getByRole("textbox", { name: /目的地/ }), { target: { value: "杭州萧山" } });
+  fireEvent.change(screen.getByLabelText(/起飞机场 IATA/), { target: { value: "sha" } });
+  fireEvent.change(screen.getByLabelText(/到达机场 IATA/), { target: { value: "hgh" } });
   fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
   fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "2" } });
 }
@@ -157,15 +159,16 @@ describe("TransportPanel", () => {
     expect(screen.getByText("测试 fixture")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/transport/fares/search", expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({
-        origin: { display_name: "上海虹桥", coordinate_system: "WGS84" },
-        destination: { display_name: "杭州萧山", coordinate_system: "WGS84" },
-        mode: "flight",
-        travel_date: "2026-11-10",
-        passenger_count: 2,
-        child_count: null,
-      }),
     }));
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody).toEqual({
+      origin: { display_name: "上海虹桥", place_id: "SHA", coordinate_system: "WGS84" },
+      destination: { display_name: "杭州萧山", place_id: "HGH", coordinate_system: "WGS84" },
+      mode: "flight",
+      travel_date: "2026-11-10",
+      passenger_count: 2,
+      child_count: null,
+    });
   });
 
   it("inherits the selected origin coordinates and submits optional child passengers", async () => {
@@ -182,6 +185,8 @@ describe("TransportPanel", () => {
       originLocationStatus="resolved"
     />);
     fireEvent.change(screen.getByRole("textbox", { name: /目的地/ }), { target: { value: "杭州萧山" } });
+    fireEvent.change(screen.getByLabelText(/起飞机场 IATA/), { target: { value: "SHA" } });
+    fireEvent.change(screen.getByLabelText(/到达机场 IATA/), { target: { value: "HGH" } });
     fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
     fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "2" } });
     fireEvent.change(screen.getByLabelText(/^儿童人数/), { target: { value: "1" } });
@@ -190,17 +195,18 @@ describe("TransportPanel", () => {
     await screen.findByText("金额待核实");
     expect(fetchMock).toHaveBeenCalledWith("/api/transport/fares/search", expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({
-        origin: {
-          display_name: "当前位置", latitude: 30.25, longitude: 120.16, coordinate_system: "WGS84",
-        },
-        destination: { display_name: "杭州萧山", coordinate_system: "WGS84" },
-        mode: "flight",
-        travel_date: "2026-11-10",
-        passenger_count: 3,
-        child_count: 1,
-      }),
     }));
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody).toEqual({
+      origin: {
+        display_name: "当前位置", place_id: "SHA", latitude: 30.25, longitude: 120.16, coordinate_system: "WGS84",
+      },
+      destination: { display_name: "杭州萧山", place_id: "HGH", coordinate_system: "WGS84" },
+      mode: "flight",
+      travel_date: "2026-11-10",
+      passenger_count: 3,
+      child_count: 1,
+    });
   });
 
   it("renders provider-returned transfer segments without inventing a through service", async () => {
@@ -219,10 +225,14 @@ describe("TransportPanel", () => {
         { segment_id: "leg-2", origin_name: "苏州北", destination_name: "杭州东", service_number: "G202", transfer_place: "苏州北" },
       ],
     }] });
-    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(response)));
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(response));
+    vi.stubGlobal("fetch", fetchMock);
     render(<TransportPanel initialDestination="杭州" />);
-    fillFareQuery();
+    fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "上海虹桥" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /目的地/ }), { target: { value: "杭州东" } });
     fireEvent.change(screen.getByLabelText(/交通方式/), { target: { value: "rail" } });
+    fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
+    fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
 
     expect(await screen.findByRole("heading", { name: /上海虹桥.*杭州东/ })).toBeVisible();
@@ -231,6 +241,10 @@ describe("TransportPanel", () => {
     expect(screen.getByText(/换乘地点：苏州北/)).toBeVisible();
     expect(screen.getByText(/2 人合计/)).toBeVisible();
     expect(screen.getByText("编号待核实")).toBeVisible();
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody.mode).toBe("rail");
+    expect(requestBody.origin).not.toHaveProperty("place_id");
+    expect(requestBody.destination).not.toHaveProperty("place_id");
   });
 
   it("isolates each route mode when one request fails and other modes succeed", async () => {
@@ -320,4 +334,74 @@ describe("TransportPanel", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: /上海虹桥.*新目的地/ })).toBeVisible());
     expect(screen.queryByRole("heading", { name: /上海虹桥.*杭州萧山/ })).not.toBeInTheDocument();
   });
+  it("requires explicit airport codes before sending a flight query", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TransportPanel initialDestination="杭州萧山" />);
+    fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "上海虹桥" } });
+    fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
+    fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("IATA 三字码");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks flight queries above the provider passenger limit", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TransportPanel initialDestination="杭州萧山" />);
+    fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "上海虹桥" } });
+    fireEvent.change(screen.getByLabelText(/起飞机场 IATA/), { target: { value: "SHA" } });
+    fireEvent.change(screen.getByLabelText(/到达机场 IATA/), { target: { value: "HGH" } });
+    fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
+    fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "10" } });
+    fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("不能超过 9 人");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("clears a prior fare result when an airport code changes", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(fareResponse())));
+    render(<TransportPanel initialDestination="杭州" />);
+    fillFareQuery();
+    fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
+    expect(await screen.findByText("金额待核实")).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText(/起飞机场 IATA/), { target: { value: "PVG" } });
+    expect(screen.queryByText("金额待核实")).not.toBeInTheDocument();
+    expect(screen.getByText(/提交查询后显示来源与结果/)).toBeVisible();
+  });
+});
+
+
+describe("FlyAI railway display", () => {
+  it.each(["https://www.fliggy.com/train?fixture=1", "javascript:alert(1)"])(
+    "renders missing fares, seat class and escaped platform hints safely: %s", async (bookingUrl) => {
+      const base = fareResponse();
+      const response = fareResponse({
+        platform_hint: "<img src=x onerror=alert(1)>平台原文",
+        items: [{ ...base.items![0], mode: "rail", price_fen: null, booking_url: bookingUrl,
+          passenger_count: null,
+          segments: [{ segment_id: "train-1", service_number: "G-TEST", seat_class: "二等座" }],
+        }],
+      });
+      vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(response)));
+      render(<TransportPanel initialDestination="杭州" />);
+      fillFareQuery();
+      fireEvent.change(screen.getByLabelText(/交通方式/), { target: { value: "rail" } });
+      fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
+      expect(await screen.findByText("票价未返回")).toBeVisible();
+      expect(screen.queryByText("金额待核实")).not.toBeInTheDocument();
+      expect(screen.queryByText("¥0.00")).not.toBeInTheDocument();
+      expect(screen.getByText("席别：二等座")).toBeVisible();
+      expect(screen.getByText(/平台提示：<img/)).toBeVisible();
+      expect(document.querySelector("img[src=x]")).toBeNull();
+      const link = screen.queryByRole("link", { name: /查看飞猪官方详情/ });
+      if (bookingUrl.startsWith("https:")) {
+        expect(link).toHaveAttribute("href", bookingUrl);
+        expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      } else { expect(link).not.toBeInTheDocument(); }
+    },
+  );
 });

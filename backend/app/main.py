@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,7 +17,9 @@ from app.core.request_context import RequestContextMiddleware
 from app.modules.assistant.router import router as assistant_router
 from app.modules.budget.router import router as budget_router
 from app.modules.foundation.router import router as foundation_router
+from app.modules.transport.providers.flyai import CliExecutor
 from app.modules.transport.router import router as transport_router
+from app.modules.transport.runtime import create_transport_service
 from app.modules.weather.router import router as weather_router
 
 _logger = logging.getLogger("app.errors")
@@ -50,10 +53,20 @@ def _public_error_response(
     return _error_response(request, public_error, status_code=status_code)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    transport_amadeus_client: httpx.Client | None = None,
+    transport_flyai_executor: CliExecutor | None = None,
+) -> FastAPI:
     app_settings = settings if settings is not None else get_settings()
     application = FastAPI(title="行旅智能旅游助手 API", version="0.1.0", debug=False)
     application.state.settings = app_settings
+    application.state.transport_service = create_transport_service(
+        app_settings,
+        amadeus_client=transport_amadeus_client,
+        flyai_executor=transport_flyai_executor,
+    )
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(app_settings.allowed_origins),

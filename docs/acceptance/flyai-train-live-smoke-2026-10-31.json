@@ -1,0 +1,55 @@
+{
+  "verification_date": "2026-10-31",
+  "origin": "上海",
+  "destination": "杭州",
+  "departure_date": "2026-11-01",
+  "cli_version": "1.0.16",
+  "retry_count": 0,
+  "cli_exit_code": 0,
+  "network": {
+    "fetch_count": 1,
+    "authorization_matches_supplied_key": true,
+    "http_status": 200,
+    "content_type": "application/json",
+    "response_bytes": 12501
+  },
+  "stdout_valid_json": true,
+  "business_status": 0,
+  "message_present": true,
+  "systemMessage_present": false,
+  "jumpUrl_present": false,
+  "error_present": false,
+  "isError_present": false,
+  "data_present": true,
+  "item_list_present": true,
+  "item_count": 10,
+  "item_field_counts": {
+    "adultPrice": 0,
+    "jumpUrl": 10,
+    "journeys": 10,
+    "currency": 0,
+    "priceUnit": 0,
+    "priceBasis": 0,
+    "remainingSeats": 0
+  },
+  "segment_field_counts": {
+    "depCityName": 13,
+    "depStationName": 13,
+    "depDateTime": 13,
+    "arrCityName": 13,
+    "arrStationName": 13,
+    "arrDateTime": 13,
+    "duration": 13,
+    "transportType": 13,
+    "marketingTransportNo": 13,
+    "seatClassName": 13
+  },
+  "all_departure_dates_match_request": true,
+  "error_indicators": {
+    "authentication": false,
+    "quota_or_rate_limit": false,
+    "timeout": false,
+    "network": false,
+    "date_validation": false
+  }
+}

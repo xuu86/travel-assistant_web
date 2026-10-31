@@ -1,0 +1,30 @@
+{
+  "checked_at": "2026-10-30T17:42:11.725829+00:00",
+  "environment": "local-development",
+  "path": "FastAPI TestClient -> runtime -> official CLI 1.0.16 -> FlyAI",
+  "query": {
+    "origin": "上海",
+    "destination": "杭州",
+    "date": "2026-11-01"
+  },
+  "api_http_status": 200,
+  "state": "partial",
+  "request_id_matched": true,
+  "item_count": 10,
+  "segment_count": 13,
+  "null_price_count": 10,
+  "unknown_passenger_count": 10,
+  "detail_link_count": 0,
+  "seat_class_count": 13,
+  "platform_hint_present": false,
+  "source_ids": [
+    "flyai.search-train"
+  ],
+  "raw_response_persisted": false,
+  "key_logged_or_persisted": false,
+  "retries": 0,
+  "upstream_http_status": 200,
+  "cli_exit_code": 0,
+  "request_count": 1,
+  "authenticated": true
+}

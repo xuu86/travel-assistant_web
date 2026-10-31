@@ -23,11 +23,12 @@ const railFare = {
   state: "demo",
   items: [{
     offer_id: "rail-e2e-001",
+    booking_url: "https://www.fliggy.com/train?fixture=e2e",
     source_id: source[0].source_id,
     mode: "rail",
     travel_date: "2026-11-10",
     segments: [
-      { segment_id: "rail-leg-1", origin_name: "测试站 A", destination_name: "测试站 B", service_number: "G-TEST-101" },
+      { segment_id: "rail-leg-1", origin_name: "测试站 A", destination_name: "测试站 B", service_number: "G-TEST-101", seat_class: "二等座" },
       { segment_id: "rail-leg-2", origin_name: "测试站 B", destination_name: "测试站 C", service_number: "G-TEST-202", transfer_place: "测试站 B" },
     ],
     service_number: null,
@@ -47,6 +48,7 @@ const railFare = {
   sources: source,
   queried_at: "2026-10-28T02:00:00Z",
   request_id: "transport-fare-fixture",
+  platform_hint: "合成平台提示",
   message: "合成测试数据，不代表实时班次或票价。",
   coverage: null,
   error: null,
@@ -104,7 +106,7 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   expect(size.content).toBeLessThanOrEqual(size.viewport);
 }
 
-test("transport starts without a request and keeps synthetic rail details explicit", async ({ page }) => {
+test("transport starts without a request and keeps synthetic rail details explicit", async ({ page }, testInfo) => {
   let fareCalls = 0;
   await page.route("**/api/transport/fares/search", async (route) => {
     fareCalls += 1;
@@ -122,7 +124,9 @@ test("transport starts without a request and keeps synthetic rail details explic
   expect(fareCalls).toBe(0);
   await expect(page.getByText("交通服务尚未配置", { exact: true })).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(0);
-  await page.setViewportSize({ width: 375, height: 812 });
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.setViewportSize({ width: 375, height: 812 });
+  }
   await expectNoHorizontalOverflow(page);
   await fillPlaces(page, "测试站 A", "测试站 C");
   await page.getByLabel(/交通方式/).selectOption("rail");
@@ -139,14 +143,88 @@ test("transport starts without a request and keeps synthetic rail details explic
   await expect(page.getByText("G-TEST-101")).toBeVisible();
   await expect(page.getByText(/G-TEST-202/)).toBeVisible();
   await expect(page.getByText(/换乘地点：测试站 B/)).toBeVisible();
-  await expect(page.getByText("金额待核实")).toBeVisible();
+  await expect(page.getByText("票价未返回")).toBeVisible();
   await expect(page.getByText("余量未知")).toBeVisible();
   await expect(page.getByText(/Transport E2E fixture/)).toBeVisible();
   await expect(page.getByText("¥0.00")).toHaveCount(0);
+  await expect(page.getByText("席别：二等座")).toBeVisible();
+  await expect(page.getByRole("link", { name: /查看飞猪官方详情/ })).toHaveAttribute("target", "_blank");
+  await expect(page.getByText("平台提示：合成平台提示")).toBeVisible();
   expect(fareCalls).toBe(2);
   await expectNoHorizontalOverflow(page);
+  await page.screenshot({ path: testInfo.outputPath("railway-results.png"), fullPage: true });
 });
 
+const flightFare = {
+  state: "partial",
+  items: [{
+    offer_id: "flight-e2e-001",
+    source_id: source[0].source_id,
+    mode: "flight",
+    travel_date: "2026-11-10",
+    segments: [{
+      segment_id: "flight-leg-1",
+      origin_name: "SHA",
+      destination_name: "HGH",
+      departure_at: "2026-11-10T00:00:00Z",
+      arrival_at: "2026-11-10T01:10:00Z",
+      departure_timezone: "Asia/Shanghai",
+      arrival_timezone: "Asia/Shanghai",
+      service_number: "MU1234",
+    }],
+    service_number: "MU1234",
+    origin_name: "上海虹桥",
+    destination_name: "杭州萧山",
+    departure_at: "2026-11-10T00:00:00Z",
+    arrival_at: "2026-11-10T01:10:00Z",
+    departure_timezone: "Asia/Shanghai",
+    arrival_timezone: "Asia/Shanghai",
+    price_fen: 35534,
+    currency_code: "CNY",
+    price_basis: "party_total",
+    price_scope: "entire_journey",
+    passenger_count: 2,
+    included_charges: [],
+    availability: "unknown",
+    remaining_seats: 3,
+    evidence_state: "unverified",
+    missing_fields: ["included_charges", "availability"],
+  }],
+  sources: [{ ...source[0], evidence_state: "unverified" }],
+  queried_at: "2026-10-28T02:00:00Z",
+  request_id: "transport-flight-fixture",
+  message: "合成测试航班，不代表锁价或锁位。",
+  coverage: null,
+  error: null,
+};
+test("flight query sends explicit IATA codes and renders the returned fare", async ({ page }) => {
+  let fareRequest: Record<string, unknown> | undefined;
+  await page.route("**/api/transport/fares/search", async (route) => {
+    fareRequest = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({ status: 200, json: flightFare });
+  });
+
+  await enterTransport(page);
+  await fillPlaces(page, "上海虹桥", "杭州萧山");
+  await page.getByLabel(/起飞机场 IATA/).fill("sha");
+  await page.getByLabel(/到达机场 IATA/).fill("hgh");
+  await page.getByLabel(/目标出行日期/).fill("2026-11-10");
+  await page.getByLabel(/成人数量/).fill("2");
+  await page.getByRole("button", { name: "查询班次" }).click();
+
+  await expect(page.getByRole("heading", { name: /上海虹桥.*杭州萧山/ })).toBeVisible();
+  const fareResults = page.getByLabel("班次与票价结果");
+  await expect(fareResults).toContainText("MU1234");
+  await expect(fareResults).toContainText("¥355.34");
+  expect(fareRequest).toMatchObject({
+    origin: { display_name: "上海虹桥", place_id: "SHA", coordinate_system: "WGS84" },
+    destination: { display_name: "杭州萧山", place_id: "HGH", coordinate_system: "WGS84" },
+    mode: "flight",
+    travel_date: "2026-11-10",
+    passenger_count: 2,
+  });
+  await expectNoHorizontalOverflow(page);
+});
 test("route modes keep separate success, failure, and taxi estimate states", async ({ page }) => {
   const calls: string[] = [];
   await page.route("**/api/transport/routes/search", async (route) => {
@@ -164,7 +242,9 @@ test("route modes keep separate success, failure, and taxi estimate states", asy
 
   await enterTransport(page);
   await fillPlaces(page);
-  await page.setViewportSize({ width: 375, height: 812 });
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.setViewportSize({ width: 375, height: 812 });
+  }
   await page.getByRole("button", { name: "市内路线" }).click();
   await page.getByRole("button", { name: "查询公交 / 地铁路线" }).click();
   await expect(page.getByRole("region", { name: "公交 / 地铁查询结果" })).toContainText("未提供地图线路，不绘制直线或估算路径。");
@@ -223,7 +303,9 @@ test("changing fare conditions clears prior data and a slow response cannot over
   await expect(page.getByRole("heading", { name: /测试站 A.*新测试目的地/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: /测试站 A.*测试站 C/ })).toHaveCount(0);
   expect(calls).toBe(2);
-  await page.setViewportSize({ width: 375, height: 812 });
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.setViewportSize({ width: 375, height: 812 });
+  }
   await expectNoHorizontalOverflow(page);
   await page.setViewportSize({ width: 812, height: 375 });
   await expectNoHorizontalOverflow(page);

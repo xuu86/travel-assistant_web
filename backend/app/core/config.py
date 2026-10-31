@@ -4,13 +4,15 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.contracts import ContractModel, ResultState
 
 EnvironmentName = Literal["development", "test", "production"]
 WeatherProviderName = Literal["open_meteo"]
+TransportFareProviderName = Literal["amadeus"]
+AmadeusEnvironmentName = Literal["test", "production"]
 
 
 class ProviderConfig(ContractModel):
@@ -43,6 +45,7 @@ class Settings(BaseSettings):
         extra="ignore",
         case_sensitive=False,
         validate_assignment=True,
+        populate_by_name=True,
     )
 
     env: EnvironmentName = "development"
@@ -56,11 +59,43 @@ class Settings(BaseSettings):
     model_api_key: SecretStr | None = None
     model_timeout_seconds: int = Field(default=30, ge=1, le=30)
     weather_provider: WeatherProviderName | None = None
+    transport_fare_provider: TransportFareProviderName | None = None
+    transport_train_provider: Literal["flyai"] | None = None
+    transport_flyai_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("APP_TRANSPORT_FLYAI_API_KEY", "FLYAI_API_KEY"),
+    )
+    transport_flyai_node_path: str = Field(default="node", min_length=1, max_length=1024)
+    transport_flyai_timeout_seconds: float = Field(default=45, ge=1, le=45)
+    transport_flyai_max_response_bytes: int = Field(
+        default=1024 * 1024, ge=1024, le=1024 * 1024
+    )
+    transport_amadeus_env: AmadeusEnvironmentName = "test"
+    transport_amadeus_client_id: SecretStr | None = None
+    transport_amadeus_client_secret: SecretStr | None = None
+    transport_amadeus_timeout_seconds: float = Field(default=8, ge=1, le=30)
+    transport_amadeus_max_response_bytes: int = Field(
+        default=256 * 1024, ge=1024, le=1024 * 1024
+    )
 
-    @field_validator("weather_provider", mode="before")
+    @field_validator(
+        "weather_provider", "transport_fare_provider", "transport_train_provider", mode="before"
+    )
     @classmethod
-    def normalize_weather_provider(cls, value: object) -> object:
-        return None if value == "" else value
+    def normalize_optional_provider(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator(
+        "transport_amadeus_client_id",
+        "transport_amadeus_client_secret",
+        "transport_flyai_api_key",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_secret(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @field_validator("model_base_url", mode="before")
     @classmethod
@@ -91,6 +126,25 @@ class Settings(BaseSettings):
             and self.model_api_key.get_secret_value().strip()
             and self.model_name
             and self.model_name.strip()
+        )
+
+    @property
+    def transport_flyai_configured(self) -> bool:
+        return bool(
+            self.transport_train_provider == "flyai"
+            and self.transport_flyai_api_key
+            and self.transport_flyai_api_key.get_secret_value().strip()
+        )
+
+    @property
+    def transport_amadeus_configured(self) -> bool:
+        """Amadeus is enabled only when the provider and both credentials are explicit."""
+        return bool(
+            self.transport_fare_provider == "amadeus"
+            and self.transport_amadeus_client_id
+            and self.transport_amadeus_client_id.get_secret_value().strip()
+            and self.transport_amadeus_client_secret
+            and self.transport_amadeus_client_secret.get_secret_value().strip()
         )
 
     @field_validator("allowed_origins", mode="before")

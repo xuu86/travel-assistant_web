@@ -120,3 +120,97 @@ def test_settings_load_explicit_local_env_file(tmp_path) -> None:
     assert settings.env == "test"
     assert settings.allowed_origins == ("http://localhost:4173",)
 
+
+def test_transport_amadeus_defaults_to_disabled_without_exposing_secrets() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.transport_fare_provider is None
+    assert settings.transport_amadeus_env == "test"
+    assert settings.transport_amadeus_client_id is None
+    assert settings.transport_amadeus_client_secret is None
+    assert settings.transport_amadeus_timeout_seconds == 8
+    assert settings.transport_amadeus_max_response_bytes == 256 * 1024
+    assert settings.transport_amadeus_configured is False
+    assert "AMADEUS_CLIENT_ID" not in repr(settings)
+
+
+def test_blank_transport_values_are_normalized_to_none() -> None:
+    settings = Settings(
+        _env_file=None,
+        transport_fare_provider="   ",
+        transport_amadeus_client_id="   ",
+        transport_amadeus_client_secret="\t",
+    )
+
+    assert settings.transport_fare_provider is None
+    assert settings.transport_amadeus_client_id is None
+    assert settings.transport_amadeus_client_secret is None
+    assert settings.transport_amadeus_configured is False
+
+
+def test_transport_amadeus_requires_provider_and_both_credentials() -> None:
+    configured = Settings(
+        _env_file=None,
+        transport_fare_provider="amadeus",
+        transport_amadeus_client_id="fixture-client-id",
+        transport_amadeus_client_secret="fixture-client-secret",
+    )
+    missing_id = Settings(
+        _env_file=None,
+        transport_fare_provider="amadeus",
+        transport_amadeus_client_secret="fixture-client-secret",
+    )
+    missing_secret = Settings(
+        _env_file=None,
+        transport_fare_provider="amadeus",
+        transport_amadeus_client_id="fixture-client-id",
+    )
+    disabled_by_provider = Settings(
+        _env_file=None,
+        transport_amadeus_client_id="fixture-client-id",
+        transport_amadeus_client_secret="fixture-client-secret",
+    )
+
+    assert configured.transport_amadeus_configured is True
+    assert missing_id.transport_amadeus_configured is False
+    assert missing_secret.transport_amadeus_configured is False
+    assert disabled_by_provider.transport_amadeus_configured is False
+    assert "fixture-client-id" not in repr(configured)
+    assert "fixture-client-secret" not in repr(configured)
+    assert "fixture-client-id" not in configured.model_dump_json()
+    assert "fixture-client-secret" not in configured.model_dump_json()
+
+
+def test_unknown_transport_fare_provider_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, transport_fare_provider="unknown")
+
+
+@pytest.mark.parametrize("timeout_seconds", [1, 30])
+def test_transport_amadeus_timeout_accepts_documented_boundaries(timeout_seconds: float) -> None:
+    settings = Settings(_env_file=None, transport_amadeus_timeout_seconds=timeout_seconds)
+
+    assert settings.transport_amadeus_timeout_seconds == timeout_seconds
+
+
+@pytest.mark.parametrize("timeout_seconds", [0, 30.1])
+def test_transport_amadeus_timeout_rejects_out_of_range_values(timeout_seconds: float) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, transport_amadeus_timeout_seconds=timeout_seconds)
+
+
+@pytest.mark.parametrize("max_response_bytes", [1024, 1024 * 1024])
+def test_transport_amadeus_response_limit_accepts_documented_boundaries(
+    max_response_bytes: int,
+) -> None:
+    settings = Settings(_env_file=None, transport_amadeus_max_response_bytes=max_response_bytes)
+
+    assert settings.transport_amadeus_max_response_bytes == max_response_bytes
+
+
+@pytest.mark.parametrize("max_response_bytes", [1023, 1024 * 1024 + 1])
+def test_transport_amadeus_response_limit_rejects_out_of_range_values(
+    max_response_bytes: int,
+) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, transport_amadeus_max_response_bytes=max_response_bytes)

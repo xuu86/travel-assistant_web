@@ -22,6 +22,19 @@
 | `maps` | 地图展示和日程联动；不拥有路线查询 | itinerary、transport |
 | `exports` | 用户主动打印 PDF，输出费用与事实状态 | itinerary、budget、local-storage |
 
+## 当前实现状态（2026-11-04）
+
+本图描述目标模块边界，不代表模块已交付。当前 Web 已有 foundation、destination-workspace、weather、transport（机票/铁路/路线查询流程）、budget、assistant 和 itinerary 的部分实现；状态边界如下：
+
+- 天气：Open-Meteo adapter 已实现；2026-10-29 完成五个注册城市各一次、单日真实连通性检查。该快照不证明持续可用、精度、未来覆盖或公网/商业使用资格，见 [天气 Provider 验收](docs/acceptance/weather-provider.md) 与 [Gate](docs/weather-provider-gate.md)。
+- 交通：Amadeus 航班 adapter 已实现但真实航班数据未验收；FlyAI 官方 CLI 铁路 provider 已接入，2026-10-31 完成本地真实 API 查询，票价与余票保持未知；市内公交、地铁、步行及出租车路线仍无 provider。
+- 酒店、活动、景点和地图：高德 Web 服务 POI/静态地图代理、四个后端路由、前端搜索工作区、分页、选点联动、地图缩放和失败状态已实现；后端 407 项测试、前端 98 项单测及上海真实连通性快照已记录。地点查询不提供酒店报价/余房、活动档期或景点开放/预约事实，地图不拥有路线查询。
+- 行程：仅前端内存中的单城市手工草稿；尚无服务端 API、持久化、账号、owner scope、跨设备同步、地图联动或 PDF 导出。
+- 导入、推荐及账号模块未实现；local-storage 与 exports 未实现。
+- 助手已有离线/fake 流程和 provider adapter；真实模型服务的资格、条款、费用、隐私及质量仍待核验。
+
+以上状态不改变获批的模块职责与依赖方向；实时数据、持久化和生产能力必须依据各自验收证据判断。
+
 ## 批准的依赖方向与分层顺序
 
 `foundation` → 查询模块、`auth`、`budget`、`assistant` → `destination-workspace`、`imports`、`recommendations`、`itinerary` → `local-storage`、`maps`、`exports`。

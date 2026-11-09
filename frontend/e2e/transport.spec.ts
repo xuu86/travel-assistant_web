@@ -197,7 +197,7 @@ const flightFare = {
   coverage: null,
   error: null,
 };
-test("flight query sends explicit IATA codes and renders the returned fare", async ({ page }) => {
+test("flight query defaults to nearest airports and renders the returned fare", async ({ page }) => {
   let fareRequest: Record<string, unknown> | undefined;
   await page.route("**/api/transport/fares/search", async (route) => {
     fareRequest = route.request().postDataJSON() as Record<string, unknown>;
@@ -206,8 +206,9 @@ test("flight query sends explicit IATA codes and renders the returned fare", asy
 
   await enterTransport(page);
   await fillPlaces(page, "上海虹桥", "杭州萧山");
-  await page.getByLabel(/起飞机场 IATA/).fill("sha");
-  await page.getByLabel(/到达机场 IATA/).fill("hgh");
+  await expect(page.getByLabel("起飞机场")).toHaveValue("SHA");
+  await expect(page.getByLabel("到达机场")).toHaveValue("HGH");
+  await expect(page.getByText(/最近机场 · 默认选择/).first()).toBeVisible();
   await page.getByLabel(/目标出行日期/).fill("2026-11-10");
   await page.getByLabel(/成人数量/).fill("2");
   await page.getByRole("button", { name: "查询班次" }).click();
@@ -225,7 +226,7 @@ test("flight query sends explicit IATA codes and renders the returned fare", asy
   });
   await expectNoHorizontalOverflow(page);
 });
-test("route modes keep separate success, failure, and taxi estimate states", async ({ page }) => {
+test("route modes keep separate success, failure, and taxi estimate states", async ({ page }, testInfo) => {
   const calls: string[] = [];
   await page.route("**/api/transport/routes/search", async (route) => {
     const request = route.request().postDataJSON() as { mode: "transit" | "walking" | "taxi" };
@@ -262,7 +263,7 @@ test("route modes keep separate success, failure, and taxi estimate states", asy
   await expectNoHorizontalOverflow(page);
 });
 
-test("changing fare conditions clears prior data and a slow response cannot overwrite the new query", async ({ page }) => {
+test("changing fare conditions clears prior data and a slow response cannot overwrite the new query", async ({ page }, testInfo) => {
   let firstRequestStarted: (() => void) | undefined;
   const started = new Promise<void>((resolve) => { firstRequestStarted = resolve; });
   let releaseFirst: (() => void) | undefined;

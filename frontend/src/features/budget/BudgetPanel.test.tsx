@@ -70,4 +70,25 @@ describe("BudgetPanel", () => {
 
     expect(screen.getByRole("note")).toHaveTextContent("用户填写，非平台报价");
   });
+
+  it("ignores a delayed calculation after the budget inputs change", async () => {
+    let resolveRequest: ((response: Response) => void) | undefined;
+    const pending = new Promise<Response>((resolve) => { resolveRequest = resolve; });
+    const fetchMock = vi.fn<typeof fetch>().mockReturnValue(pending);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<BudgetPanel destinationName="杭州" />);
+
+    const totalInput = screen.getByRole("textbox", { name: "整趟总预算（元）" });
+    fireEvent.change(totalInput, { target: { value: "1000" } });
+    fireEvent.click(screen.getByRole("button", { name: "计算预算" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const signal = fetchMock.mock.calls[0][1]?.signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+
+    fireEvent.change(totalInput, { target: { value: "100" } });
+    expect(signal?.aborted).toBe(true);
+    resolveRequest?.(successResponse({ total_budget_fen: 100000, remaining_to_allocate_fen: 100000, expected_balance_fen: 100000 }));
+    await waitFor(() => expect(totalInput).toHaveValue("100"));
+    expect(screen.queryByRole("heading", { name: "预算概览" })).not.toBeInTheDocument();
+  });
 });

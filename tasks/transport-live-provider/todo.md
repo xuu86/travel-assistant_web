@@ -1,7 +1,9 @@
 # transport-live-provider 任务清单
 
-> 版本：v0.2｜状态：航班 adapter 与 mock 验收完成；真实数据/铁路/路线未完成｜更新：2026-10-30（北京时间）
+> 版本：v0.3｜状态：Amadeus adapter 与 mock 验收完成；真实航班及路线未完成｜更新：2026-11-04（北京时间）
 > 对应规格与计划：[SPEC](../../docs/SPEC-transport-live-provider.md)、[实施计划](plan.md)。代码接入不等于真实供应商授权或真实数据验收。
+
+> 状态说明：铁路已由独立的 FlyAI 官方 CLI provider 接入，并于 2026-10-31 完成本地真实 API 查询；这不属于本清单的 Amadeus 航班 provider，且未验证铁路价格/余票。证据见 [Transport 验收记录](../../docs/acceptance/transport.md)。
 
 ## 通用规则
 
@@ -66,11 +68,11 @@
 - [ ] **验收：** 按批准范围发起有限真实查询，分别记录来源、覆盖、时间、金额语义与异常；不保存原始响应或完整班次响应；不宣称为锁价/锁位。
 - **依赖：** TLP-00 至 TLP-05、Gate 补证、单独 live 授权。当前不执行。
 
-### TLP-R1 — 铁路 / 高铁 Provider
+### TLP-R1 — 铁路 / 高铁 Provider（由独立 FlyAI 任务跟踪）
 
-- [ ] **阻塞：** 12306 网页/内部接口没有获批的第三方 API 契约；同程/上游 skill 也不授权铁路数据抓取。当前没有正式 Railway Provider。
-- [ ] **解法：** 选择具有授权、稳定文档和再展示许可的铁路数据供应商；另立配置名、映射测试、票价/余票/席别/儿童/Gate 和 live smoke 任务。
-- [ ] **状态：** BLOCKED / deferred；不得复用 Amadeus 配置，也不得以合成 fixture 冒充真实铁路数据。
+- [x] FlyAI 官方 CLI provider 已接入；铁路配置与 Amadeus 配置隔离，真实 API 查询仅完成一次本地 smoke。
+- [ ] **待核实：** 账户全部权限、配额、用途/缓存要求、票价与余票语义；当前真实响应无确定票价或余量。
+- [ ] **边界：** 不调用 12306 网页/内部接口，不把缺失金额/余量补成估值；后续任务见 [FlyAI provider plan](../flyai-train-provider-plan.md)。
 
 ### TLP-R2 — 公交 / 地铁 / 步行 / 出租车路线
 
@@ -81,6 +83,6 @@
 ## 当前结论
 
 - 航班：官方 Amadeus adapter 已实现并接入，但默认关闭，真实数据未验收。
-- 铁路：未接通。
+- 铁路：FlyAI provider 已接入且完成一次本地真实 API 查询；价格/余票语义未验收。
 - 公交、地铁、步行、出租车：未接通。
 - 任何 mock/E2E 通过均只证明契约、映射、界面和故障隔离，不代表供应商生产可用。

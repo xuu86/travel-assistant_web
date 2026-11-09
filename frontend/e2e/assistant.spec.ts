@@ -88,8 +88,8 @@ test("context stays off by default, selected evidence is explicit, and patches r
   await page.goto("/");
   await page.getByRole("combobox", { name: "目的城市" }).selectOption("hangzhou");
   await page.getByRole("button", { name: "开始规划" }).click();
-  await page.getByLabel("开始日期").fill("2026-11-01");
-  await page.getByLabel("结束日期").fill("2026-11-01");
+  await page.getByLabel("开始日期", { exact: true }).fill("2026-11-01");
+  await page.getByLabel("结束日期", { exact: true }).fill("2026-11-01");
   await page.getByRole("button", { name: "查询天气" }).click();
   await expect(page.getByText("预报数据已就绪")).toBeVisible();
   await page.getByRole("button", { name: "AI 助手" }).click();
@@ -103,7 +103,7 @@ test("context stays off by default, selected evidence is explicit, and patches r
   expect(body.include_trip_context).toBe(false);
   expect(body.trip_context).toBeUndefined();
   expect(body.evidence).toHaveLength(1);
-  expect((body.evidence[0] as { source: { evidence_state: string } }).source.evidence_state).toBe("user_provided");
+  expect((body.evidence?.[0] as { source: { evidence_state: string } }).source.evidence_state).toBe("user_provided");
   await expect(page.getByRole("button", { name: /应用/ })).toHaveCount(0);
   expect(await page.evaluate(() => (window as Window & { injected?: boolean }).injected)).toBeUndefined();
   await expect(page.getByText("天气查询 · 用户提供，未核实")).toBeVisible();

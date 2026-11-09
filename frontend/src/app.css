@@ -263,6 +263,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-weight: 700;
 }
 .workspace-change:hover { border-color: var(--mustard); background: rgb(255 253 248 / 9%); color: var(--mustard); }
+.trip-date-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; padding: 13px 16px; border: 1px solid var(--line); border-top: 0; background: var(--paper-light); }
+.trip-date-bar__title { margin: 0 8px 0 0; color: var(--ink); font-size: 12px; font-weight: 800; }
+.trip-date-bar label { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 12px; font-weight: 700; }
+.trip-date-bar input { min-height: 36px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 0; background: var(--white); color: var(--ink); }
+.trip-date-bar__error { flex-basis: 100%; margin: 0; color: var(--error); font-size: 12px; }
 .workspace-view[hidden] { display: none; }
 
 .destination-dialog {
@@ -522,6 +527,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .workspace-destination, .workspace-origin { font-size: 18px; }
   .workspace-bar__actions { width: 100%; }
   .workspace-change { flex: 1 1 auto; }
+  .trip-date-bar { align-items: stretch; flex-direction: column; gap: 10px; }
+  .trip-date-bar label { justify-content: space-between; }
+  .trip-date-bar input { width: min(68%, 240px); }
   .hero { padding-top: 34px; }
   .hero h1 { font-size: clamp(39px, 12.5vw, 60px); }
   .hero__description { margin-top: 20px; font-size: 15px; line-height: 1.8; }

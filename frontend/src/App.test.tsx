@@ -206,6 +206,25 @@ describe("App weather query", () => {
     expect(screen.getByRole("status")).toHaveTextContent("尚未查询天气");
   });
 
+  it("keeps trip dates independent from the weather query range", () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    stubWeatherResponse(fetchMock, unconfiguredForecast);
+    render(<App />);
+    activateDestination("hangzhou");
+
+    const weatherStart = screen.getByLabelText("开始日期");
+    const tripStart = screen.getByLabelText("旅行开始日期");
+    fireEvent.change(tripStart, { target: { value: "2026-11-05" } });
+    fireEvent.change(screen.getByLabelText("旅行结束日期"), { target: { value: "2026-11-06" } });
+    expect(weatherStart).not.toHaveValue("2026-11-05");
+
+    fireEvent.change(weatherStart, { target: { value: "2026-11-08" } });
+    fireEvent.change(screen.getByLabelText("结束日期"), { target: { value: "2026-11-09" } });
+    expect(tripStart).toHaveValue("2026-11-05");
+    fireEvent.click(screen.getByRole("button", { name: "行程" }));
+    expect(screen.getByText(/日期：2026-11-05 至 2026-11-06/)).toBeVisible();
+  });
+
   it("ignores a weather response that arrives after the destination workspace was replaced", async () => {
     let resolveForecast: ((response: Response) => void) | undefined;
     const pendingForecast = new Promise<Response>((resolve) => { resolveForecast = resolve; });

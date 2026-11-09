@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { components } from "../../shared/api-contracts";
 import { calculateBudget, type BudgetResponse } from "./api";
@@ -32,26 +32,46 @@ export function BudgetPanel({ destinationName }: { destinationName: string }) {
   const [summary, setSummary] = useState<BudgetResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const calculationSequence = useRef(0);
+  const requestController = useRef<AbortController | null>(null);
+
+  useEffect(() => () => {
+    calculationSequence.current += 1;
+    requestController.current?.abort();
+  }, []);
+
+  function invalidateCalculation() {
+    calculationSequence.current += 1;
+    requestController.current?.abort();
+    requestController.current = null;
+    setLoading(false);
+    setSummary(null);
+    setError(null);
+  }
 
   function updateCost(id: string, patch: Partial<CostDraft>) {
+    invalidateCalculation();
     setCosts((current) => current.map((cost) => cost.id === id ? { ...cost, ...patch } : cost));
-    setSummary(null);
   }
 
   function addCost() {
+    invalidateCalculation();
     setCosts((current) => [...current, newCost()]);
-    setSummary(null);
   }
 
   function removeCost(id: string) {
+    invalidateCalculation();
     setCosts((current) => current.filter((cost) => cost.id !== id));
-    setSummary(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSummary(null);
+    const requestNumber = ++calculationSequence.current;
+    requestController.current?.abort();
+    const controller = new AbortController();
+    requestController.current = controller;
 
     try {
       const totalBudget = parseYuanToFen(total);
@@ -76,12 +96,17 @@ export function BudgetPanel({ destinationName }: { destinationName: string }) {
         total_budget_fen: totalBudget,
         reserve_fen: reserveFen,
         cost_items: costItems,
-      });
-      setSummary(result);
+      }, fetch, controller.signal);
+      if (requestNumber === calculationSequence.current && !controller.signal.aborted) setSummary(result);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "预算计算失败，请重试。");
+      if (requestNumber === calculationSequence.current && !controller.signal.aborted) {
+        setError(cause instanceof Error ? cause.message : "预算计算失败，请重试。");
+      }
     } finally {
-      setLoading(false);
+      if (requestNumber === calculationSequence.current) {
+        requestController.current = null;
+        setLoading(false);
+      }
     }
   }
 
@@ -113,14 +138,14 @@ export function BudgetPanel({ destinationName }: { destinationName: string }) {
               <span>整趟总预算</span>
               <span className="budget-input-wrap">
                 <span aria-hidden="true">¥</span>
-                <input inputMode="decimal" autoComplete="off" value={total} onChange={(event) => { setTotal(event.target.value); setSummary(null); }} aria-label="整趟总预算（元）" placeholder="例如 6000" />
+                <input inputMode="decimal" autoComplete="off" value={total} onChange={(event) => { invalidateCalculation(); setTotal(event.target.value); }} aria-label="整趟总预算（元）" placeholder="例如 6000" />
               </span>
             </label>
             <label className="budget-field">
               <span>手动预留金 <small>可不设置</small></span>
               <span className="budget-input-wrap">
                 <span aria-hidden="true">¥</span>
-                <input inputMode="decimal" autoComplete="off" value={reserve} onChange={(event) => { setReserve(event.target.value); setSummary(null); }} aria-label="预留金（元）" placeholder="不预留请留空" />
+                <input inputMode="decimal" autoComplete="off" value={reserve} onChange={(event) => { invalidateCalculation(); setReserve(event.target.value); }} aria-label="预留金（元）" placeholder="不预留请留空" />
               </span>
             </label>
           </div>

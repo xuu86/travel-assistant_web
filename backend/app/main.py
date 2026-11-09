@@ -4,10 +4,6 @@ import logging
 from uuid import UUID
 
 import httpx
-from app.modules.activities.router import router as activities_router
-from app.modules.attractions.router import router as attractions_router
-from app.modules.hotels.router import router as hotels_router
-from app.modules.maps.router import router as maps_router
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,9 +15,13 @@ from app.core.config import Settings, get_settings
 from app.core.contracts import ErrorCode, PublicError
 from app.core.errors import ServiceError, to_public_error
 from app.core.request_context import RequestContextMiddleware
+from app.modules.activities.router import router as activities_router
 from app.modules.assistant.router import router as assistant_router
+from app.modules.attractions.router import router as attractions_router
 from app.modules.budget.router import router as budget_router
 from app.modules.foundation.router import router as foundation_router
+from app.modules.hotels.router import router as hotels_router
+from app.modules.maps.router import router as maps_router
 from app.modules.transport.providers.flyai import CliExecutor
 from app.modules.transport.router import router as transport_router
 from app.modules.transport.runtime import create_transport_service

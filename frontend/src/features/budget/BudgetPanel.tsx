@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { components } from "../../shared/api-contracts";
+import { createDraftId } from "../../shared/draft-id";
 import { calculateBudget, type BudgetResponse } from "./api";
 import { formatFen, parseYuanToFen } from "./money";
 import "./budget-panel.css";
@@ -18,7 +19,7 @@ type CostDraft = {
 const CATEGORIES: CostCategory[] = ["往返交通", "住宿", "餐饮", "市内交通", "门票", "活动", "其他"];
 
 function newCost(): CostDraft {
-  return { id: crypto.randomUUID(), category: "往返交通", paid: "", unpaid: "", userQuote: false };
+  return { id: createDraftId(), category: "往返交通", paid: "", unpaid: "", userQuote: false };
 }
 
 function moneyLabel(value: number | null): string {
@@ -28,7 +29,7 @@ function moneyLabel(value: number | null): string {
 export function BudgetPanel({ destinationName }: { destinationName: string }) {
   const [total, setTotal] = useState("");
   const [reserve, setReserve] = useState("");
-  const [costs, setCosts] = useState<CostDraft[]>([newCost()]);
+  const [costs, setCosts] = useState<CostDraft[]>(() => [newCost()]);
   const [summary, setSummary] = useState<BudgetResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

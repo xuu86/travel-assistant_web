@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { createDraftId } from "../../shared/draft-id";
 import "./itinerary-panel.css";
 
 type ItineraryItem = { id: string; date: string; time: string; title: string; note: string; locked: boolean; completed: boolean };
 
 function newItem(date: string): ItineraryItem {
-  return { id: crypto.randomUUID(), date, time: "09:00", title: "", note: "", locked: false, completed: false };
+  return { id: createDraftId(), date, time: "09:00", title: "", note: "", locked: false, completed: false };
 }
 
 export function ItineraryPanel({ destinationName, startDate, endDate }: { destinationName: string; startDate: string; endDate: string }) {

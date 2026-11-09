@@ -8,6 +8,9 @@ import { ItineraryPanel } from "./features/itinerary/ItineraryPanel";
 import { AssistantPanel } from "./features/assistant/AssistantPanel";
 import { ChecklistPanel } from "./features/checklist/ChecklistPanel";
 import { NotesPanel } from "./features/notes/NotesPanel";
+import { PlacesPanel } from "./features/places/PlacesPanel";
+import { MapPanel } from "./features/maps/MapPanel";
+import type { Place } from "./features/places/api";
 import type { PlaceRef } from "./features/transport/api";
 import type { components } from "./shared/api-contracts";
 import "./app.css";
@@ -58,7 +61,8 @@ function safeWeatherError(error: unknown): WeatherApiError {
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState<"weather" | "budget" | "transport" | "itinerary" | "checklist" | "notes" | "assistant">("weather");
+  const [activeView, setActiveView] = useState<"weather" | "budget" | "transport" | "itinerary" | "checklist" | "notes" | "assistant" | "hotels" | "activities" | "attractions" | "maps">("weather");
+  const [mapPlace, setMapPlace] = useState<Place | null>(null);
   const [selectedDestinationId, setSelectedDestinationId] = useState("");
   const [selectedOriginId, setSelectedOriginId] = useState("current");
   const [customOrigin, setCustomOrigin] = useState("");
@@ -78,6 +82,8 @@ export function App() {
   const originRequest = useRef(0);
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultStartDate);
+  const [tripStartDate, setTripStartDate] = useState(defaultStartDate);
+  const [tripEndDate, setTripEndDate] = useState(defaultStartDate);
   const [formError, setFormError] = useState<string | null>(null);
   const [weatherState, setWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
   const [todayWeatherState, setTodayWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
@@ -192,11 +198,14 @@ export function App() {
   }
 
   function resetWorkspaceState() {
+    setMapPlace(null);
     activeRequest.current += 1;
     originRequest.current += 1;
     setWorkspaceKey((key) => key + 1);
     setStartDate(defaultStartDate);
     setEndDate(defaultStartDate);
+    setTripStartDate(defaultStartDate);
+    setTripEndDate(defaultStartDate);
     setWeatherState({ status: "unconfigured" });
     setFormError(null);
     setActiveView("weather");
@@ -453,6 +462,10 @@ export function App() {
                   <span className="feature-nav__icon" aria-hidden="true">⇄</span>
                   <span className="feature-nav__text"><strong>交通</strong><small aria-hidden="true">TRANSPORT</small></span>
                 </button>
+                <button type="button" aria-pressed={activeView === "hotels"} onClick={() => setActiveView("hotels")}><span className="feature-nav__icon" aria-hidden="true">⌂</span><span className="feature-nav__text"><strong>酒店</strong><small aria-hidden="true">HOTELS</small></span></button>
+                <button type="button" aria-pressed={activeView === "activities"} onClick={() => setActiveView("activities")}><span className="feature-nav__icon" aria-hidden="true">◇</span><span className="feature-nav__text"><strong>活动</strong><small aria-hidden="true">ACTIVITIES</small></span></button>
+                <button type="button" aria-pressed={activeView === "attractions"} onClick={() => setActiveView("attractions")}><span className="feature-nav__icon" aria-hidden="true">◎</span><span className="feature-nav__text"><strong>景点</strong><small aria-hidden="true">ATTRACTIONS</small></span></button>
+                <button type="button" aria-pressed={activeView === "maps"} onClick={() => setActiveView("maps")}><span className="feature-nav__icon" aria-hidden="true">⌖</span><span className="feature-nav__text"><strong>地图</strong><small aria-hidden="true">MAPS</small></span></button>
                 <button type="button" aria-pressed={activeView === "itinerary"} onClick={() => setActiveView("itinerary")}>
                   <span className="feature-nav__icon" aria-hidden="true">☰</span>
                   <span className="feature-nav__text"><strong>行程</strong><small aria-hidden="true">ITINERARY</small></span>
@@ -470,8 +483,14 @@ export function App() {
                   <span className="feature-nav__text"><strong>AI 助手</strong><small aria-hidden="true">ASSISTANT</small></span>
                 </button>
               </nav>
-              <p className="feature-nav__caption">WORKSPACE / 07 MODULES</p>
+              <p className="feature-nav__caption">WORKSPACE / 11 MODULES</p>
             </div>
+            <section className="trip-date-bar" aria-label="旅行日期">
+              <p className="trip-date-bar__title">旅行日期</p>
+              <label><span>开始</span><input type="date" aria-label="旅行开始日期" value={tripStartDate} onChange={(event) => setTripStartDate(event.target.value)} /></label>
+              <label><span>结束</span><input type="date" aria-label="旅行结束日期" value={tripEndDate} onChange={(event) => setTripEndDate(event.target.value)} /></label>
+              {(requestedDays(tripStartDate, tripEndDate) ?? 0) < 1 && <p className="trip-date-bar__error" role="alert">旅行结束日期不能早于开始日期。</p>}
+            </section>
             <dialog
               ref={destinationDialogRef}
               className="destination-dialog"
@@ -481,7 +500,7 @@ export function App() {
               onCancel={(event) => { event.preventDefault(); setShowDestinationDialog(false); setDestinationError(null); }}
             >
                   <h2 id="destination-dialog-title">{destinationDialogAction === "return" ? "返回选择城市？" : "更换目的地？"}</h2>
-                  <p id="destination-dialog-description">确认后将清除本页预算草稿、天气查询条件与结果，以及交通、清单与笔记状态。</p>
+                  <p id="destination-dialog-description">确认后将清除本页预算草稿、天气查询条件与结果、旅行日期、行程草稿、AI 对话、清单与笔记，以及交通、酒店、活动、景点和地图的输入与结果。</p>
                   {destinationDialogAction === "change" && <label className="field">
                     <span className="field__label">新目的城市</span>
                     <select autoFocus value={selectedDestinationId} onChange={(event) => { setSelectedDestinationId(event.target.value); setDestinationError(null); }}>
@@ -592,10 +611,18 @@ export function App() {
             </div>
             <div className="workspace-view" hidden={activeView !== "budget"} key={`budget-${workspaceKey}`}><BudgetPanel destinationName={destination.name} /></div>
             <div className="workspace-view" hidden={activeView !== "transport"} key={`transport-${workspaceKey}`}><TransportPanel key={workspaceKey} initialDestination={destination.name} initialOrigin={originPlace} originLocationStatus={originLocationStatus} /></div>
-            <div className="workspace-view" hidden={activeView !== "itinerary"} key={`itinerary-${workspaceKey}`}><ItineraryPanel destinationName={destination.name} startDate={startDate} endDate={endDate} /></div>
-            <div className="workspace-view" hidden={activeView !== "checklist"} key={`checklist-${workspaceKey}`}><ChecklistPanel destinationName={destination.name} startDate={startDate} endDate={endDate} /></div>
-            <div className="workspace-view" hidden={activeView !== "notes"} key={`notes-${workspaceKey}`}><NotesPanel destinationName={destination.name} startDate={startDate} endDate={endDate} /></div>
-            <div className="workspace-view" hidden={activeView !== "assistant"} key={`assistant-${workspaceKey}`}><AssistantPanel destinationName={destination.name} startDate={startDate} endDate={endDate} evidence={assistantEvidence} /></div>
+            <div className="workspace-view" hidden={activeView !== "itinerary"} key={`itinerary-${workspaceKey}`}><ItineraryPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} /></div>
+            <div className="workspace-view" hidden={activeView !== "checklist"} key={`checklist-${workspaceKey}`}><ChecklistPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} /></div>
+            <div className="workspace-view" hidden={activeView !== "notes"} key={`notes-${workspaceKey}`}><NotesPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} /></div>
+            <div className="workspace-view" hidden={activeView !== "assistant"} key={`assistant-${workspaceKey}`}><AssistantPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} evidence={assistantEvidence} /></div>
+            {(["hotels", "activities", "attractions"] as const).map((category) => (
+              <div className="workspace-view" hidden={activeView !== category} key={`${category}-${workspaceKey}`}>
+                <PlacesPanel category={category} cityId={destination.id} cityName={destination.name}
+                  onSelect={(place) => { setMapPlace(place); setActiveView("maps"); }} />
+              </div>
+            ))}
+            {activeView === "maps" && <MapPanel key={`maps-${workspaceKey}`} cityId={destination.id} cityName={destination.name}
+              selectedPlace={mapPlace} onSelect={setMapPlace} />}
           </>
         )}
       </main>
@@ -615,6 +642,8 @@ export function App() {
               ? "预算金额仅在本页计算，不连接报价平台"
               : activeView === "transport"
                 ? "交通服务未配置时不会显示演示班次或路线"
+                : ["hotels", "activities", "attractions", "maps"].includes(activeView)
+                  ? "地点与地图来自高德；报价、档期及开放情况需另行核实"
                 : activeView === "itinerary"
                   ? "行程草稿仅保存在当前页面，不连接订票或地图服务"
                   : activeView === "checklist"

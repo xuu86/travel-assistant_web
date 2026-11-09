@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/activities/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search */
+        post: operations["search_api_activities_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/assistant/chat": {
         parameters: {
             query?: never;
@@ -15,6 +32,23 @@ export interface paths {
         put?: never;
         /** Ask the travel assistant */
         post: operations["chat_api_assistant_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/attractions/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search */
+        post: operations["search_api_attractions_search_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -86,6 +120,57 @@ export interface paths {
         get: operations["health_api_health_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hotels/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search */
+        post: operations["search_api_hotels_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/maps/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search */
+        post: operations["search_api_maps_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/maps/static": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Static Map */
+        post: operations["static_map_api_maps_static_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -558,6 +643,54 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** Place */
+        Place: {
+            /** Address */
+            address?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Id */
+            id: string;
+            location?: components["schemas"]["PlaceLocation"] | null;
+            /** Name */
+            name: string;
+            /**
+             * Source Id
+             * @default amap.place
+             * @constant
+             */
+            source_id: "amap.place";
+            /** Telephone */
+            telephone?: string | null;
+        };
+        /** PlaceLocation */
+        PlaceLocation: {
+            /**
+             * Coordinate System
+             * @default GCJ02
+             * @constant
+             */
+            coordinate_system: "GCJ02";
+            /** Latitude */
+            latitude: number;
+            /** Longitude */
+            longitude: number;
+        };
+        /** PlaceQuery */
+        PlaceQuery: {
+            /** City Id */
+            city_id: string;
+            /**
+             * Keywords
+             * @default
+             */
+            keywords: string;
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+        };
         /** PlaceRef */
         PlaceRef: {
             /**
@@ -574,6 +707,45 @@ export interface components {
             longitude?: number | null;
             /** Place Id */
             place_id?: string | null;
+        };
+        /** PlaceResult */
+        PlaceResult: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "hotels" | "activities" | "attractions" | "maps";
+            /** City Id */
+            city_id: string;
+            coverage?: components["schemas"]["Coverage"] | null;
+            error?: components["schemas"]["PublicError"] | null;
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
+            /** Items */
+            items?: components["schemas"]["Place"][];
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+            /** Page */
+            page: number;
+            /**
+             * Queried At
+             * Format: date-time
+             */
+            queried_at?: string;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /** Sources */
+            sources?: components["schemas"]["SourceRef"][];
+            state: components["schemas"]["ResultState"];
         };
         /** PublicError */
         PublicError: {
@@ -719,6 +891,17 @@ export interface components {
             /** Valid To */
             valid_to?: string | null;
         };
+        /** StaticMapQuery */
+        StaticMapQuery: {
+            /** City Id */
+            city_id: string;
+            location?: components["schemas"]["PlaceLocation"] | null;
+            /**
+             * Zoom
+             * @default 13
+             */
+            zoom: number;
+        };
         /** TripContext */
         TripContext: {
             /** Budget Fen */
@@ -844,6 +1027,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    search_api_activities_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaceQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceResult"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicError"];
+                };
+            };
+        };
+    };
     chat_api_assistant_chat_post: {
         parameters: {
             query?: never;
@@ -873,6 +1089,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_api_attractions_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaceQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceResult"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicError"];
                 };
             };
         };
@@ -1006,6 +1255,116 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    search_api_hotels_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaceQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceResult"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicError"];
+                };
+            };
+        };
+    };
+    search_api_maps_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaceQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceResult"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicError"];
+                };
+            };
+        };
+    };
+    static_map_api_maps_static_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaticMapQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/gif": unknown;
+                    "image/jpeg": unknown;
+                    "image/png": unknown;
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicError"];
                 };
             };
         };

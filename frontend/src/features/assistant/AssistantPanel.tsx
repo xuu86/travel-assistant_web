@@ -17,6 +17,26 @@ type DisplayTurn = {
   evidenceIds?: string[];
 };
 
+const MAX_HISTORY_MESSAGES = 12;
+const MAX_HISTORY_CHARS = 10_000;
+const MAX_HISTORY_MESSAGE_CHARS = 4_000;
+
+function boundedHistory(turns: DisplayTurn[], retryTurnId: number | undefined, message: string): ChatMessage[] {
+  const candidates = turns
+    .filter((turn) => turn.id !== retryTurnId)
+    .map(({ role, text }) => ({ role, content: text.slice(-MAX_HISTORY_MESSAGE_CHARS) }));
+  const budget = Math.min(MAX_HISTORY_CHARS, 12_000 - message.length);
+  const history: ChatMessage[] = [];
+  let chars = 0;
+  for (let index = candidates.length - 1; index >= 0 && history.length < MAX_HISTORY_MESSAGES; index -= 1) {
+    const candidate = candidates[index];
+    if (chars + candidate.content.length > budget) break;
+    history.push(candidate);
+    chars += candidate.content.length;
+  }
+  return history.reverse();
+}
+
 type AssistantPanelProps = {
   destinationName: string;
   startDate: string;
@@ -94,9 +114,7 @@ export function AssistantPanel({
     const requestNumber = ++sequence.current;
     const contextEnabled = retry ? Boolean(lastUserTurn?.tripContext) : includeContext;
     const selectedIds = retry ? lastUserTurn?.evidenceIds ?? [] : selectedEvidence;
-    const previousMessages: ChatMessage[] = turns
-      .filter((turn) => !(retry && turn.id === lastUserTurn?.id))
-      .map(({ role, text }) => ({ role, content: text }));
+    const previousMessages = boundedHistory(turns, retry ? lastUserTurn?.id : undefined, trimmed);
     const turnId = Date.now() + requestNumber;
     if (!retry) {
       const tripContext = contextEnabled

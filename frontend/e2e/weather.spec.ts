@@ -35,8 +35,8 @@ const partialFixture = {
 };
 
 async function setQuery(page: Page, endDate = "2026-10-28") {
-  await page.getByLabel("开始日期").fill("2026-10-27");
-  await page.getByLabel("结束日期").fill(endDate);
+  await page.getByLabel("开始日期", { exact: true }).fill("2026-10-27");
+  await page.getByLabel("结束日期", { exact: true }).fill(endDate);
 }
 
 async function enterWorkspace(page: Page, city = "shanghai") {
@@ -116,7 +116,7 @@ test("partial coverage shows missing dates and does not keep stale results", asy
   expect(calls).toBe(2);
   await assertNoHorizontalOverflow(page);
 
-  await page.getByLabel("结束日期").fill("2026-10-30");
+  await page.getByLabel("结束日期", { exact: true }).fill("2026-10-30");
   await expect(page.getByRole("article")).toHaveCount(0);
   await expect(page.locator(".weather-panel__state")).toContainText("尚未查询天气");
 });

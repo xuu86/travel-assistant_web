@@ -41,11 +41,13 @@ function isBudgetResponse(value: unknown): value is BudgetResponse {
 export async function calculateBudget(
   snapshot: BudgetSnapshot,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<BudgetResponse> {
   const response = await fetchImpl("/api/budget/calculate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(snapshot),
+    signal,
   });
 
   let body: unknown;

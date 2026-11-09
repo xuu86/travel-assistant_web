@@ -168,8 +168,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .feature-nav {
   counter-reset: nav-step;
   display: flex;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
+  flex-wrap: wrap;
   gap: 0;
   margin: 0;
   padding: 0;
@@ -182,6 +183,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: inline-flex;
   align-items: center;
   gap: 9px;
+  flex: 1 1 16.66%;
   min-width: 122px;
   min-height: 64px;
   padding: 9px 16px 9px 14px;
@@ -407,6 +409,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
 }
 .workspace-change:hover { border-color: var(--mustard); background: rgb(255 253 248 / 9%); color: var(--mustard); }
+.trip-date-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; padding: 13px 16px; border: 1px solid var(--line); border-top: 0; background: var(--paper-light); }
+.trip-date-bar__title { margin: 0 8px 0 0; color: var(--ink); font-size: 12px; font-weight: 800; }
+.trip-date-bar label { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 12px; font-weight: 700; }
+.trip-date-bar input { min-height: 36px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 0; background: var(--white); color: var(--ink); }
+.trip-date-bar__error { flex-basis: 100%; margin: 0; color: var(--error); font-size: 12px; }
 .workspace-view[hidden] { display: none; }
 
 /* ---------- Destination dialog ---------- */
@@ -1073,8 +1080,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .workspace-bar__arrow { display: none; }
   .workspace-bar__actions { width: 100%; }
   .workspace-change { flex: 1 1 auto; }
-  .hero { padding-top: 32px; }
-  .hero h1 { font-size: clamp(39px, 12vw, 58px); }
+  .trip-date-bar { align-items: stretch; flex-direction: column; gap: 10px; }
+  .trip-date-bar label { justify-content: space-between; }
+  .trip-date-bar input { width: min(68%, 240px); }
+  .hero { padding-top: 34px; }
+  .hero h1 { font-size: clamp(39px, 12.5vw, 60px); }
   .hero__description { margin-top: 20px; font-size: 15px; line-height: 1.8; }
   .hero__facts { grid-template-columns: 1fr; gap: 10px; }
   .hero__facts span { padding-top: 9px; }

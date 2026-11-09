@@ -41,6 +41,8 @@
 .itinerary-cancel { min-height: 46px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 0; background: var(--white); color: var(--ink-soft); cursor: pointer; }
 .itinerary-cancel:hover { border-color: var(--navy); background: var(--teal-pale); color: var(--navy); }
 .itinerary-error { margin: 14px 0 0; padding: 10px 12px; border-left: 4px solid var(--rust); background: var(--error-bg); color: var(--error); font-size: 13px; }
+.itinerary-range-warning { margin: 16px 0; padding: 10px 12px; border-left: 4px solid var(--mustard); background: var(--paper-light); color: var(--ink); font-size: 13px; line-height: 1.6; }
+.itinerary-range-label { display: inline-block; margin: 7px 0 0 8px; color: var(--rust-dark); font-size: 11px; font-weight: 700; }
 .itinerary-empty { margin: 0; padding: 18px; border-left: 4px solid var(--line-strong); color: var(--ink-faint); background: rgb(255 253 248 / 70%); font-size: 13px; }
 .itinerary-days { display: grid; gap: 22px; }
 .itinerary-day { min-width: 0; }

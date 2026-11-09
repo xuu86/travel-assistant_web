@@ -1352,6 +1352,139 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Place": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceLocation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "source_id": {
+            "const": "amap.place",
+            "default": "amap.place",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "telephone": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telephone"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Place",
+        "type": "object"
+      },
+      "PlaceLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "coordinate_system": {
+            "const": "GCJ02",
+            "default": "GCJ02",
+            "title": "Coordinate System",
+            "type": "string"
+          },
+          "latitude": {
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude",
+            "type": "number"
+          }
+        },
+        "required": [
+          "longitude",
+          "latitude"
+        ],
+        "title": "PlaceLocation",
+        "type": "object"
+      },
+      "PlaceQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "city_id": {
+            "maxLength": 80,
+            "minLength": 2,
+            "title": "City Id",
+            "type": "string"
+          },
+          "keywords": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Keywords",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "city_id"
+        ],
+        "title": "PlaceQuery",
+        "type": "object"
+      },
       "PlaceRef": {
         "additionalProperties": false,
         "properties": {
@@ -1412,6 +1545,96 @@
           "display_name"
         ],
         "title": "PlaceRef",
+        "type": "object"
+      },
+      "PlaceResult": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "hotels",
+              "activities",
+              "attractions",
+              "maps"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "city_id": {
+            "title": "City Id",
+            "type": "string"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Coverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "message": {
+            "default": "",
+            "maxLength": 240,
+            "title": "Message",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "queried_at": {
+            "format": "date-time",
+            "title": "Queried At",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRef"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ResultState"
+          }
+        },
+        "required": [
+          "state",
+          "request_id",
+          "city_id",
+          "category",
+          "page"
+        ],
+        "title": "PlaceResult",
         "type": "object"
       },
       "PublicError": {
@@ -1922,6 +2145,37 @@
         "title": "SourceRef",
         "type": "object"
       },
+      "StaticMapQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "city_id": {
+            "title": "City Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceLocation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zoom": {
+            "default": 13,
+            "maximum": 18.0,
+            "minimum": 3.0,
+            "title": "Zoom",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "city_id"
+        ],
+        "title": "StaticMapQuery",
+        "type": "object"
+      },
       "TripContext": {
         "additionalProperties": false,
         "properties": {
@@ -2345,6 +2599,47 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/activities/search": {
+      "post": {
+        "operationId": "search_api_activities_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "activities"
+        ]
+      }
+    },
     "/api/assistant/chat": {
       "post": {
         "operationId": "chat_api_assistant_chat_post",
@@ -2383,6 +2678,47 @@
         "summary": "Ask the travel assistant",
         "tags": [
           "assistant"
+        ]
+      }
+    },
+    "/api/attractions/search": {
+      "post": {
+        "operationId": "search_api_attractions_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "attractions"
         ]
       }
     },
@@ -2547,6 +2883,137 @@
         "summary": "Health",
         "tags": [
           "foundation"
+        ]
+      }
+    },
+    "/api/hotels/search": {
+      "post": {
+        "operationId": "search_api_hotels_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "hotels"
+        ]
+      }
+    },
+    "/api/maps/search": {
+      "post": {
+        "operationId": "search_api_maps_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "maps"
+        ]
+      }
+    },
+    "/api/maps/static": {
+      "post": {
+        "operationId": "static_map_api_maps_static_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaticMapQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "image/gif": {},
+              "image/jpeg": {},
+              "image/png": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Static Map",
+        "tags": [
+          "maps"
         ]
       }
     },

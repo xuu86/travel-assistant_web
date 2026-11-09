@@ -43,10 +43,7 @@ describe("AssistantPanel", () => {
 
   it("defaults context off, sends only selected context/evidence, and previews patch without applying", async () => {
     const onResponse = vi.fn();
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(liveResponse), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    }));
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(liveResponse), { status: 200 }));
     render(<AssistantPanel
       destinationName="杭州"
       startDate="2026-11-01"
@@ -107,5 +104,25 @@ describe("AssistantPanel", () => {
     expect(input).toHaveValue("如何安排？");
     fireEvent.click(screen.getByRole("button", { name: "重试" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("sends only a bounded recent conversation history", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify(liveResponse), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    render(<AssistantPanel destinationName="杭州" startDate="2026-11-01" endDate="2026-11-03" fetchImpl={fetchMock} />);
+
+    for (let turn = 1; turn <= 8; turn += 1) {
+      fireEvent.change(screen.getByLabelText("发送给 AI 助手"), { target: { value: `第 ${turn} 个问题` } });
+      fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(turn));
+      await waitFor(() => expect(screen.getAllByText(liveResponse.reply)).toHaveLength(turn));
+    }
+
+    const request = JSON.parse(String(fetchMock.mock.calls[7][1]?.body)) as { message: string; history: { role: string; content: string }[] };
+    expect(request.history).toHaveLength(12);
+    expect(request.history.reduce((total, item) => total + item.content.length, request.message.length)).toBeLessThanOrEqual(12_000);
+    expect(request.history.at(-1)).toMatchObject({ role: "assistant", content: liveResponse.reply });
   });
 });

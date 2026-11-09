@@ -3,6 +3,8 @@
 > 日期：2026-10-27（北京时间）  
 > 范围：WTH-00 至 WTH-09、WTH-12 的 mock-only 阶段；不代表真实天气供应商已接入。
 
+> 后续状态（2026-10-29）：本页以下原始结论记录的是 2026-10-27 的验收快照，之后已完成 Open-Meteo adapter 与五城单日连通性 smoke。当前证据及商业/公网使用边界以 [weather provider acceptance](weather-provider.md) 和 [provider gate](../weather-provider-gate.md) 为准。
+
 ## 结论
 
 **天气模块的契约、后端服务/API、前端状态流、响应式界面和 mock-only 自动化验收通过。** Open-Meteo Gate 0 尚未通过；没有发出实时天气请求、使用 API Key、验证五城真实覆盖或对供应商许可作法律判断。WTH-10/WTH-11 仍为 blocked。页面初始状态保持“天气服务尚未配置”，只有用户提交查询才会请求同源 `/api/weather/forecast`；demo 结果只存在于明确标记的测试 fixture 中。

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { components } from "../../shared/api-contracts";
+import { AIRPORTS, airportDistanceKm, nearestAirport, placeCoordinates } from "./airports";
 import {
   fetchTransportFares,
   fetchTransportRoute,
@@ -18,7 +19,6 @@ type EvidenceState = components["schemas"]["EvidenceState"];
 type FareOffer = components["schemas"]["FareOffer"];
 type RouteOption = components["schemas"]["RouteOption"];
 const EMPTY_PLACE: PlaceRef = { display_name: "", coordinate_system: "WGS84" };
-const IATA_PATTERN = /^[A-Za-z]{3}$/;
 
 type QueryState<T> =
   | { status: "unconfigured" }
@@ -397,8 +397,10 @@ export function TransportPanel({
   const [origin, setOrigin] = useState<PlaceRef>(initialOrigin);
   const originWasEdited = useRef(false);
   const [destination, setDestination] = useState(initialDestination);
-  const [originIata, setOriginIata] = useState("");
-  const [destinationIata, setDestinationIata] = useState("");
+  const [originAirportCode, setOriginAirportCode] = useState("");
+  const [destinationAirportCode, setDestinationAirportCode] = useState("");
+  const originAirportWasEdited = useRef(false);
+  const destinationAirportWasEdited = useRef(false);
   const [fareMode, setFareMode] = useState<FareQuery["mode"]>("flight");
   const [travelDate, setTravelDate] = useState("");
   const [adultCount, setAdultCount] = useState("1");
@@ -414,6 +416,20 @@ export function TransportPanel({
   }));
   const fareSequence = useRef(0);
   const routeSequences = useRef<Record<RouteMode, number>>({ transit: 0, walking: 0, taxi: 0 });
+  const originCoordinates = origin.latitude != null && origin.longitude != null
+    ? { latitude: origin.latitude, longitude: origin.longitude }
+    : placeCoordinates(origin.display_name);
+  const destinationCoordinates = placeCoordinates(destination);
+  const nearestOriginAirport = nearestAirport(originCoordinates);
+  const nearestDestinationAirport = nearestAirport(destinationCoordinates);
+
+  useEffect(() => {
+    if (!originAirportWasEdited.current) setOriginAirportCode(nearestOriginAirport?.iata ?? "");
+  }, [nearestOriginAirport?.iata]);
+
+  useEffect(() => {
+    if (!destinationAirportWasEdited.current) setDestinationAirportCode(nearestDestinationAirport?.iata ?? "");
+  }, [nearestDestinationAirport?.iata]);
 
   useEffect(() => {
     if (!originWasEdited.current) setOrigin(initialOrigin);
@@ -497,13 +513,11 @@ export function TransportPanel({
     const originPlace = buildPlace(origin.display_name, origin);
     const destinationPlace = buildPlace(destination);
     if (fareMode === "flight") {
-      const normalizedOriginIata = originIata.trim().toUpperCase();
-      const normalizedDestinationIata = destinationIata.trim().toUpperCase();
-      if (!IATA_PATTERN.test(normalizedOriginIata) || !IATA_PATTERN.test(normalizedDestinationIata)) {
-        setFareFormError("航班查询必须填写明确的起飞机场和到达机场 IATA 三字码，例如 SHA / HGH。");
+      if (!originAirportCode || !destinationAirportCode) {
+        setFareFormError("请选择起飞机场和到达机场。");
         return;
       }
-      if (normalizedOriginIata === normalizedDestinationIata) {
+      if (originAirportCode === destinationAirportCode) {
         setFareFormError("起飞机场与到达机场不能相同。");
         return;
       }
@@ -511,8 +525,8 @@ export function TransportPanel({
         setFareFormError("Amadeus 航班查询的成人加儿童总数不能超过 9 人。");
         return;
       }
-      originPlace.place_id = normalizedOriginIata;
-      destinationPlace.place_id = normalizedDestinationIata;
+      originPlace.place_id = originAirportCode;
+      destinationPlace.place_id = destinationAirportCode;
     }
 
     const query: FareQuery = {
@@ -632,9 +646,16 @@ export function TransportPanel({
           onOriginChange={(value) => {
             clearResults();
             originWasEdited.current = true;
+            originAirportWasEdited.current = false;
+            setOriginAirportCode(nearestAirport(placeCoordinates(value))?.iata ?? "");
             setOrigin({ display_name: value, coordinate_system: "WGS84" });
           }}
-          onDestinationChange={(value) => { clearResults(); setDestination(value); }}
+          onDestinationChange={(value) => {
+            clearResults();
+            destinationAirportWasEdited.current = false;
+            setDestinationAirportCode(nearestAirport(placeCoordinates(value))?.iata ?? "");
+            setDestination(value);
+          }}
         />
 
         {activeSection === "fares" ? (
@@ -665,34 +686,52 @@ export function TransportPanel({
               {fareMode === "flight" && (
                 <>
                   <label className="transport-field">
-                    <span className="transport-field__label">起飞机场 IATA</span>
-                    <input
-                      autoComplete="off"
-                      autoCapitalize="characters"
-                      spellCheck={false}
-                      value={originIata}
-                      onChange={(event) => { clearFareResults(); setOriginIata(event.target.value); }}
-                      maxLength={3}
-                      pattern="[A-Za-z]{3}"
-                      required
-                      aria-describedby="transport-origin-iata-hint"
-                    />
-                    <span className="transport-field__hint" id="transport-origin-iata-hint">请输入明确机场代码，如 SHA；不会从城市名自动猜测。</span>
+                    <span className="transport-field__label">起飞机场</span>
+                    <select
+                      value={originAirportCode}
+                      onChange={(event) => {
+                        clearFareResults();
+                        originAirportWasEdited.current = true;
+                        setOriginAirportCode(event.target.value);
+                      }}
+                      aria-describedby="transport-origin-airport-hint"
+                    >
+                      {!originAirportCode && <option value="">选择机场</option>}
+                      {AIRPORTS.map((airport) => (
+                        <option key={airport.iata} value={airport.iata}>
+                          {airport.name} · {airport.iata}{airport.iata === nearestOriginAirport?.iata ? " · 最近" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="transport-field__hint" id="transport-origin-airport-hint">
+                      {nearestOriginAirport
+                        ? `最近机场${originAirportCode === nearestOriginAirport.iata ? " · 默认选择" : " · 可更改"} · ${nearestOriginAirport.name}（约 ${Math.round(airportDistanceKm(originCoordinates!, nearestOriginAirport))} 公里）`
+                        : "无法根据起点定位最近机场，请从列表中选择。"}
+                    </span>
                   </label>
                   <label className="transport-field">
-                    <span className="transport-field__label">到达机场 IATA</span>
-                    <input
-                      autoComplete="off"
-                      autoCapitalize="characters"
-                      spellCheck={false}
-                      value={destinationIata}
-                      onChange={(event) => { clearFareResults(); setDestinationIata(event.target.value); }}
-                      maxLength={3}
-                      pattern="[A-Za-z]{3}"
-                      required
-                      aria-describedby="transport-destination-iata-hint"
-                    />
-                    <span className="transport-field__hint" id="transport-destination-iata-hint">请输入明确机场代码，如 HGH；代码会统一转为大写。</span>
+                    <span className="transport-field__label">到达机场</span>
+                    <select
+                      value={destinationAirportCode}
+                      onChange={(event) => {
+                        clearFareResults();
+                        destinationAirportWasEdited.current = true;
+                        setDestinationAirportCode(event.target.value);
+                      }}
+                      aria-describedby="transport-destination-airport-hint"
+                    >
+                      {!destinationAirportCode && <option value="">选择机场</option>}
+                      {AIRPORTS.map((airport) => (
+                        <option key={airport.iata} value={airport.iata}>
+                          {airport.name} · {airport.iata}{airport.iata === nearestDestinationAirport?.iata ? " · 最近" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="transport-field__hint" id="transport-destination-airport-hint">
+                      {nearestDestinationAirport
+                        ? `最近机场${destinationAirportCode === nearestDestinationAirport.iata ? " · 默认选择" : " · 可更改"} · ${nearestDestinationAirport.name}（约 ${Math.round(airportDistanceKm(destinationCoordinates!, nearestDestinationAirport))} 公里）`
+                        : "无法根据目的地定位最近机场，请从列表中选择。"}
+                    </span>
                   </label>
                 </>
               )}

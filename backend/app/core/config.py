@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     model_api_key: SecretStr | None = None
     model_timeout_seconds: int = Field(default=30, ge=1, le=30)
     weather_provider: WeatherProviderName | None = None
+    amap_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("APP_AMAP_API_KEY", "AMAP_API_KEY")
+    )
+    amap_timeout_seconds: float = Field(default=10, ge=1, le=30)
     transport_fare_provider: TransportFareProviderName | None = None
     transport_train_provider: Literal["flyai"] | None = None
     transport_flyai_api_key: SecretStr | None = Field(
@@ -89,6 +93,7 @@ class Settings(BaseSettings):
         "transport_amadeus_client_id",
         "transport_amadeus_client_secret",
         "transport_flyai_api_key",
+        "amap_api_key",
         mode="before",
     )
     @classmethod
@@ -127,6 +132,10 @@ class Settings(BaseSettings):
             and self.model_name
             and self.model_name.strip()
         )
+
+    @property
+    def amap_configured(self) -> bool:
+        return bool(self.amap_api_key and self.amap_api_key.get_secret_value().strip())
 
     @property
     def transport_flyai_configured(self) -> bool:

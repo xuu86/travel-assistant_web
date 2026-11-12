@@ -10,13 +10,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.amap import AmapService
 from app.core.config import Settings, get_settings
 from app.core.contracts import ErrorCode, PublicError
 from app.core.errors import ServiceError, to_public_error
 from app.core.request_context import RequestContextMiddleware
+from app.modules.activities.router import router as activities_router
 from app.modules.assistant.router import router as assistant_router
+from app.modules.attractions.router import router as attractions_router
 from app.modules.budget.router import router as budget_router
 from app.modules.foundation.router import router as foundation_router
+from app.modules.hotels.router import router as hotels_router
+from app.modules.maps.router import router as maps_router
 from app.modules.transport.providers.flyai import CliExecutor
 from app.modules.transport.router import router as transport_router
 from app.modules.transport.runtime import create_transport_service
@@ -58,10 +63,12 @@ def create_app(
     *,
     transport_amadeus_client: httpx.Client | None = None,
     transport_flyai_executor: CliExecutor | None = None,
+    amap_client: httpx.Client | None = None,
 ) -> FastAPI:
     app_settings = settings if settings is not None else get_settings()
     application = FastAPI(title="行旅智能旅游助手 API", version="0.1.0", debug=False)
     application.state.settings = app_settings
+    application.state.amap_service = AmapService(app_settings, client=amap_client)
     application.state.transport_service = create_transport_service(
         app_settings,
         amadeus_client=transport_amadeus_client,
@@ -81,6 +88,10 @@ def create_app(
     application.include_router(budget_router)
     application.include_router(weather_router)
     application.include_router(transport_router)
+    application.include_router(hotels_router)
+    application.include_router(activities_router)
+    application.include_router(attractions_router)
+    application.include_router(maps_router)
 
     @application.exception_handler(ServiceError)
     async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:

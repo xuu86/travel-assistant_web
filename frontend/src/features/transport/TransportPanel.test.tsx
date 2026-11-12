@@ -86,8 +86,8 @@ function jsonResponse(body: unknown, status = 200) {
 function fillFareQuery() {
   fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "上海虹桥" } });
   fireEvent.change(screen.getByRole("textbox", { name: /目的地/ }), { target: { value: "杭州萧山" } });
-  fireEvent.change(screen.getByLabelText(/起飞机场 IATA/), { target: { value: "sha" } });
-  fireEvent.change(screen.getByLabelText(/到达机场 IATA/), { target: { value: "hgh" } });
+  fireEvent.change(screen.getByRole("combobox", { name: /起飞机场/ }), { target: { value: "SHA" } });
+  fireEvent.change(screen.getByRole("combobox", { name: /到达机场/ }), { target: { value: "HGH" } });
   fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
   fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "2" } });
 }
@@ -185,8 +185,8 @@ describe("TransportPanel", () => {
       originLocationStatus="resolved"
     />);
     fireEvent.change(screen.getByRole("textbox", { name: /目的地/ }), { target: { value: "杭州萧山" } });
-    fireEvent.change(screen.getByLabelText(/起飞机场 IATA/), { target: { value: "SHA" } });
-    fireEvent.change(screen.getByLabelText(/到达机场 IATA/), { target: { value: "HGH" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /起飞机场/ }), { target: { value: "SHA" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /到达机场/ }), { target: { value: "HGH" } });
     fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
     fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "2" } });
     fireEvent.change(screen.getByLabelText(/^儿童人数/), { target: { value: "1" } });
@@ -327,6 +327,7 @@ describe("TransportPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
 
     fireEvent.change(screen.getByRole("textbox", { name: /目的地/ }), { target: { value: "新目的地" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /到达机场/ }), { target: { value: "HGH" } });
     fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
     expect(await screen.findByRole("heading", { name: /上海虹桥.*新目的地/ })).toBeVisible();
 
@@ -334,15 +335,15 @@ describe("TransportPanel", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: /上海虹桥.*新目的地/ })).toBeVisible());
     expect(screen.queryByRole("heading", { name: /上海虹桥.*杭州萧山/ })).not.toBeInTheDocument();
   });
-  it("requires explicit airport codes before sending a flight query", async () => {
+  it("defaults to nearest airports and requires a selection only when the location is unknown", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
-    render(<TransportPanel initialDestination="杭州萧山" />);
-    fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "上海虹桥" } });
+    render(<TransportPanel initialDestination="未知目的地" />);
+    fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "未知起点" } });
     fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
     fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("IATA 三字码");
+    expect(await screen.findByRole("alert")).toHaveTextContent("请选择起飞机场和到达机场");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -351,8 +352,8 @@ describe("TransportPanel", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<TransportPanel initialDestination="杭州萧山" />);
     fireEvent.change(screen.getByRole("textbox", { name: /起点/ }), { target: { value: "上海虹桥" } });
-    fireEvent.change(screen.getByLabelText(/起飞机场 IATA/), { target: { value: "SHA" } });
-    fireEvent.change(screen.getByLabelText(/到达机场 IATA/), { target: { value: "HGH" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /起飞机场/ }), { target: { value: "SHA" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /到达机场/ }), { target: { value: "HGH" } });
     fireEvent.change(screen.getByLabelText(/目标出行日期/), { target: { value: "2026-11-10" } });
     fireEvent.change(screen.getByLabelText(/成人数量/), { target: { value: "10" } });
     fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
@@ -368,9 +369,23 @@ describe("TransportPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
     expect(await screen.findByText("金额待核实")).toBeVisible();
 
-    fireEvent.change(screen.getByLabelText(/起飞机场 IATA/), { target: { value: "PVG" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /起飞机场/ }), { target: { value: "PVG" } });
     expect(screen.queryByText("金额待核实")).not.toBeInTheDocument();
     expect(screen.getByText(/提交查询后显示来源与结果/)).toBeVisible();
+  });
+
+  it("marks nearest default airports and allows the user to change them", () => {
+    render(<TransportPanel initialDestination="杭州" initialOrigin={{
+      display_name: "上海",
+      coordinate_system: "WGS84",
+    }} />);
+
+    expect(screen.getByRole("combobox", { name: /起飞机场/ })).toHaveValue("SHA");
+    expect(screen.getByRole("combobox", { name: /到达机场/ })).toHaveValue("HGH");
+    expect(screen.getAllByText(/最近机场 · 默认选择/)).toHaveLength(2);
+    fireEvent.change(screen.getByRole("combobox", { name: /起飞机场/ }), { target: { value: "PVG" } });
+    expect(screen.getByRole("combobox", { name: /起飞机场/ })).toHaveValue("PVG");
+    expect(screen.getByText(/最近机场 · 可更改/)).toBeVisible();
   });
 });
 

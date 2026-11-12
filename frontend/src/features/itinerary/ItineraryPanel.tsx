@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { createDraftId } from "../../shared/draft-id";
 import "./itinerary-panel.css";
 
 type ItineraryItem = { id: string; date: string; time: string; title: string; note: string; locked: boolean; completed: boolean };
 
+/** 小机器人随机添加的一项安排 */
+export type InjectedItinerary = { token: number; title: string; time: string; note: string };
+
 function newItem(date: string): ItineraryItem {
   return { id: createDraftId(), date, time: "09:00", title: "", note: "", locked: false, completed: false };
 }
 
-export function ItineraryPanel({ destinationName, startDate, endDate }: { destinationName: string; startDate: string; endDate: string }) {
+export function ItineraryPanel({ destinationName, startDate, endDate, injectedItem }: { destinationName: string; startDate: string; endDate: string; injectedItem?: InjectedItinerary | null }) {
   const [items, setItems] = useState<ItineraryItem[]>([]);
   const [draft, setDraft] = useState(() => newItem(startDate));
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -23,6 +26,32 @@ export function ItineraryPanel({ destinationName, startDate, endDate }: { destin
     return result;
   }, [startDate, endDate]);
 
+  // 小机器人随机添加一项安排：日期在行程区间内随机取一天
+  useEffect(() => {
+    if (!injectedItem) return;
+    const applyTimer = window.setTimeout(() => {
+      const date = dates[Math.floor(Math.random() * dates.length)] ?? startDate;
+      setItems((current) => [...current, {
+        id: createDraftId(),
+        date,
+        time: injectedItem.time,
+        title: injectedItem.title,
+        note: injectedItem.note,
+        locked: false,
+        completed: false,
+      }].sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)));
+    }, 0);
+    const scrollTimer = window.setTimeout(() => {
+      const item = document.querySelector(".itinerary-list .itinerary-item:last-of-type");
+      if (item instanceof HTMLElement && typeof item.scrollIntoView === "function") {
+        item.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 140);
+    return () => {
+      window.clearTimeout(applyTimer);
+      window.clearTimeout(scrollTimer);
+    };
+  }, [injectedItem, dates, startDate]);
   const draftDate = !editingId && dates.length > 0 && !dates.includes(draft.date) ? dates[0] : draft.date;
 
   function addItem(event: FormEvent<HTMLFormElement>) {

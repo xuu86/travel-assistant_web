@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -27,6 +27,10 @@ const mockForecast = {
     coordinate_system: "WGS84", resolved_latitude: null, resolved_longitude: null, elevation_m: null,
   },
 } as const;
+
+function getToolButton(name: string) {
+  return within(screen.getByRole("navigation", { name: "旅行工具" })).getByRole("button", { name });
+}
 
 const unconfiguredForecast = {
   ...mockForecast,
@@ -97,7 +101,7 @@ describe("App weather query", () => {
     activateDestination("hangzhou");
     expect(screen.getByText("当前位置", { selector: ".workspace-origin" })).toBeVisible();
     expect(screen.getByText("定位完成")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "交通" }));
+    fireEvent.click(getToolButton("交通"));
     expect(screen.getByRole("textbox", { name: /起点/ })).toHaveValue("当前位置");
   });
 
@@ -107,7 +111,7 @@ describe("App weather query", () => {
     fireEvent.change(screen.getByLabelText("自定义出发地点"), { target: { value: "杭州东站" } });
     activateDestination("hangzhou");
     expect(screen.getByText("杭州东站", { selector: ".workspace-origin" })).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "交通" }));
+    fireEvent.click(getToolButton("交通"));
     expect(screen.getByRole("textbox", { name: /起点/ })).toHaveValue("杭州东站");
   });
 
@@ -221,7 +225,7 @@ describe("App weather query", () => {
     fireEvent.change(weatherStart, { target: { value: "2026-11-08" } });
     fireEvent.change(screen.getByLabelText("结束日期"), { target: { value: "2026-11-09" } });
     expect(tripStart).toHaveValue("2026-11-05");
-    fireEvent.click(screen.getByRole("button", { name: "行程" }));
+    fireEvent.click(getToolButton("行程"));
     expect(screen.getByText(/日期：2026-11-05 至 2026-11-06/)).toBeVisible();
   });
 
@@ -251,19 +255,35 @@ describe("App weather query", () => {
 });
 
 describe("App feature navigation", () => {
+  it("adds an unpriced budget category from the robot instead of inventing a paid amount", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    stubWeatherResponse(fetchMock, unconfiguredForecast);
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    render(<App />);
+    activateDestination("hangzhou");
+
+    fireEvent.click(screen.getByRole("button", { name: "随机添加一笔预算费用或一项行程安排" }));
+
+    expect(getToolButton("预算")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("combobox", { name: "类别" })).toHaveValue("往返交通");
+    expect(await screen.findByRole("textbox", { name: "费用项 2 已支付（元）" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "费用项 2 预计待支付（元）" })).toHaveValue("");
+    expect(screen.getByText(/金额待你填写/)).toBeVisible();
+  });
+
   it("opens the assistant alongside the existing itinerary view without an automatic request", () => {
     const fetchMock = vi.fn<typeof fetch>();
     stubWeatherResponse(fetchMock, unconfiguredForecast);
     render(<App />);
     activateDestination("hangzhou");
 
-    expect(screen.getByRole("button", { name: "行程" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "AI 助手" }));
+    expect(getToolButton("行程")).toBeInTheDocument();
+    fireEvent.click(getToolButton("AI 助手"));
     expect(screen.getByRole("heading", { name: "AI 旅行助手" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "AI 助手" })).toHaveAttribute("aria-pressed", "true");
+    expect(getToolButton("AI 助手")).toHaveAttribute("aria-pressed", "true");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "行程" }));
+    fireEvent.click(getToolButton("行程"));
     expect(screen.getByRole("heading", { name: "旅行行程" })).toBeVisible();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -274,17 +294,17 @@ describe("App feature navigation", () => {
     render(<App />);
     activateDestination();
 
-    fireEvent.click(screen.getByRole("button", { name: "交通" }));
+    fireEvent.click(getToolButton("交通"));
     expect(screen.getByRole("heading", { name: "交通查询" })).toBeVisible();
     expect(screen.getByRole("status")).toHaveTextContent("交通服务尚未配置");
-    expect(screen.getByRole("button", { name: "交通" })).toHaveAttribute("aria-pressed", "true");
+    expect(getToolButton("交通")).toHaveAttribute("aria-pressed", "true");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "预算" }));
+    fireEvent.click(getToolButton("预算"));
     expect(screen.getByRole("heading", { name: "旅行预算" })).toBeVisible();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "天气" }));
+    fireEvent.click(getToolButton("天气"));
     expect(screen.getByRole("heading", { name: "从一座城市，开始规划一段旅程。" })).toBeVisible();
     expect(await screen.findByRole("status")).toHaveTextContent("天气服务尚未配置");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -293,11 +313,11 @@ describe("App feature navigation", () => {
   it("preserves budget drafts across tools and resets them only after confirming a destination change", () => {
     render(<App />);
     activateDestination("hangzhou");
-    fireEvent.click(screen.getByRole("button", { name: "预算" }));
+    fireEvent.click(getToolButton("预算"));
     const budget = screen.getByRole("textbox", { name: "整趟总预算（元）" });
     fireEvent.change(budget, { target: { value: "6000" } });
-    fireEvent.click(screen.getByRole("button", { name: "天气" }));
-    fireEvent.click(screen.getByRole("button", { name: "预算" }));
+    fireEvent.click(getToolButton("天气"));
+    fireEvent.click(getToolButton("预算"));
     expect(screen.getByRole("textbox", { name: "整趟总预算（元）" })).toHaveValue("6000");
 
     fireEvent.click(screen.getByRole("button", { name: "更换目的地" }));
@@ -310,14 +330,14 @@ describe("App feature navigation", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "新目的城市" }), { target: { value: "suzhou" } });
     fireEvent.click(screen.getByRole("button", { name: "确认更换" }));
     expect(screen.getByText("苏州", { selector: ".workspace-destination" })).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "预算" }));
+    fireEvent.click(getToolButton("预算"));
     expect(screen.getByRole("textbox", { name: "整趟总预算（元）" })).toHaveValue("");
   });
 
   it("returns to city selection after confirming and clears the workspace without a reload", () => {
     render(<App />);
     activateDestination("hangzhou");
-    fireEvent.click(screen.getByRole("button", { name: "预算" }));
+    fireEvent.click(getToolButton("预算"));
     fireEvent.change(screen.getByRole("textbox", { name: "整趟总预算（元）" }), { target: { value: "4200" } });
     fireEvent.click(screen.getByRole("button", { name: "返回选择城市" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("将清除本页预算草稿");

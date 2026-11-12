@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import type { components } from "../../shared/api-contracts";
 import { createDraftId } from "../../shared/draft-id";
 import { calculateBudget, type BudgetResponse } from "./api";
+import { COST_CATEGORIES, type CostCategory } from "./categories";
 import { formatFen, parseYuanToFen } from "./money";
 import "./budget-panel.css";
-
-type CostCategory = components["schemas"]["CostItem"]["category"];
 
 type CostDraft = {
   id: string;
@@ -16,7 +14,8 @@ type CostDraft = {
   userQuote: boolean;
 };
 
-const CATEGORIES: CostCategory[] = ["往返交通", "住宿", "餐饮", "市内交通", "门票", "活动", "其他"];
+/** 小机器人随机添加的一笔费用 */
+export type InjectedCost = { token: number; category: CostCategory };
 
 function newCost(): CostDraft {
   return { id: createDraftId(), category: "往返交通", paid: "", unpaid: "", userQuote: false };
@@ -26,7 +25,7 @@ function moneyLabel(value: number | null): string {
   return formatFen(value);
 }
 
-export function BudgetPanel({ destinationName }: { destinationName: string }) {
+export function BudgetPanel({ destinationName, injectedCost }: { destinationName: string; injectedCost?: InjectedCost | null }) {
   const [total, setTotal] = useState("");
   const [reserve, setReserve] = useState("");
   const [costs, setCosts] = useState<CostDraft[]>(() => [newCost()]);
@@ -49,6 +48,30 @@ export function BudgetPanel({ destinationName }: { destinationName: string }) {
     setSummary(null);
     setError(null);
   }
+
+  // 小机器人随机添加的一笔费用，接到指令后直接落入明细
+  useEffect(() => {
+    if (!injectedCost) return;
+    const applyTimer = window.setTimeout(() => {
+      calculationSequence.current += 1;
+      requestController.current?.abort();
+      requestController.current = null;
+      setLoading(false);
+      setSummary(null);
+      setError(null);
+      setCosts((current) => [...current, { ...newCost(), category: injectedCost.category }]);
+    }, 0);
+    const scrollTimer = window.setTimeout(() => {
+      const row = document.querySelector(".cost-list .cost-row:last-of-type");
+      if (row instanceof HTMLElement && typeof row.scrollIntoView === "function") {
+        row.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 140);
+    return () => {
+      window.clearTimeout(applyTimer);
+      window.clearTimeout(scrollTimer);
+    };
+  }, [injectedCost]);
 
   function updateCost(id: string, patch: Partial<CostDraft>) {
     invalidateCalculation();
@@ -181,7 +204,7 @@ export function BudgetPanel({ destinationName }: { destinationName: string }) {
                 <label className="budget-field cost-category">
                   <span>类别</span>
                   <select value={cost.category} onChange={(event) => updateCost(cost.id, { category: event.target.value as CostCategory })}>
-                    {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                    {COST_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
                   </select>
                 </label>
                 <label className="budget-field">

@@ -1842,6 +1842,24 @@
       "RouteQuery": {
         "additionalProperties": false,
         "properties": {
+          "city_id": {
+            "anyOf": [
+              {
+                "enum": [
+                  "shanghai",
+                  "suzhou",
+                  "wuxi",
+                  "jiaxing",
+                  "hangzhou"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Id"
+          },
           "depart_at": {
             "anyOf": [
               {

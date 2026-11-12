@@ -104,14 +104,46 @@ afterEach(() => {
 });
 
 describe("TransportPanel", () => {
-  it("starts unconfigured without issuing requests or showing synthetic results", () => {
+  it("submits the selected route city and clears old results when city changes", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(routeResponse("walking")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TransportPanel initialDestination="杭州" initialCityId="shanghai" />);
+    fillRouteQuery();
+    fireEvent.click(screen.getByRole("button", { name: "市内路线" }));
+    expect(screen.getByRole("combobox", { name: "路线所在城市" })).toHaveValue("shanghai");
+    fireEvent.click(screen.getByRole("button", { name: "查询步行路线" }));
+    expect(await screen.findByText("未提供地图线路，不绘制直线或估算路径。")).toBeVisible();
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).city_id).toBe("shanghai");
+    fireEvent.change(screen.getByRole("combobox", { name: "路线所在城市" }), { target: { value: "hangzhou" } });
+    expect(screen.queryByText("未提供地图线路，不绘制直线或估算路径。")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "查询步行路线" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).city_id).toBe("hangzhou");
+  });
+
+  it("requires an explicit city when the initial destination has no city context", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TransportPanel initialDestination="未知地点" />);
+    fillRouteQuery();
+    fireEvent.click(screen.getByRole("button", { name: "市内路线" }));
+    fireEvent.click(screen.getByRole("button", { name: "查询步行路线" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("请选择路线所在城市");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("waits for a query before reporting provider configuration for fares or routes", () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
     render(<TransportPanel initialDestination="杭州" />);
 
     expect(screen.getByRole("heading", { name: "交通查询" })).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("交通服务尚未配置");
-    expect(screen.getByRole("status")).toHaveTextContent("提交查询后仍不会使用测试数据或旧结果填补。");
+    expect(screen.getByText(/提交查询后显示来源与结果/)).toBeVisible();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("交通服务尚未配置")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "市内路线" }));
+    expect(screen.getAllByText(/提交查询后显示来源与结果/)).toHaveLength(3);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText("测试 fixture")).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });

@@ -11,7 +11,7 @@ from app.core.contracts import ContractModel, ResultState
 
 EnvironmentName = Literal["development", "test", "production"]
 WeatherProviderName = Literal["open_meteo"]
-TransportFareProviderName = Literal["amadeus"]
+TransportFareProviderName = Literal["amadeus", "flyai"]
 AmadeusEnvironmentName = Literal["test", "production"]
 
 
@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     amap_timeout_seconds: float = Field(default=10, ge=1, le=30)
     transport_fare_provider: TransportFareProviderName | None = None
     transport_train_provider: Literal["flyai"] | None = None
+    transport_route_provider: Literal["amap"] | None = None
     transport_flyai_api_key: SecretStr | None = Field(
         default=None,
         validation_alias=AliasChoices("APP_TRANSPORT_FLYAI_API_KEY", "FLYAI_API_KEY"),
@@ -83,7 +84,8 @@ class Settings(BaseSettings):
     )
 
     @field_validator(
-        "weather_provider", "transport_fare_provider", "transport_train_provider", mode="before"
+        "weather_provider", "transport_fare_provider", "transport_train_provider",
+        "transport_route_provider", mode="before"
     )
     @classmethod
     def normalize_optional_provider(cls, value: object) -> object:

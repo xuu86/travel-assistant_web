@@ -122,7 +122,8 @@ test("transport starts without a request and keeps synthetic rail details explic
 
   await enterTransport(page);
   expect(fareCalls).toBe(0);
-  await expect(page.getByText("交通服务尚未配置", { exact: true })).toBeVisible();
+  await expect(page.getByText(/提交查询后显示来源与结果/)).toBeVisible();
+  await expect(page.getByText("交通服务尚未配置", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("article")).toHaveCount(0);
   if (testInfo.project.name === "mobile-chromium") {
     await page.setViewportSize({ width: 375, height: 812 });
@@ -229,7 +230,8 @@ test("flight query defaults to nearest airports and renders the returned fare", 
 test("route modes keep separate success, failure, and taxi estimate states", async ({ page }, testInfo) => {
   const calls: string[] = [];
   await page.route("**/api/transport/routes/search", async (route) => {
-    const request = route.request().postDataJSON() as { mode: "transit" | "walking" | "taxi" };
+    const request = route.request().postDataJSON() as { mode: "transit" | "walking" | "taxi"; city_id: string };
+    expect(request.city_id).toBe("hangzhou");
     calls.push(request.mode);
     if (request.mode === "walking") {
       await route.fulfill({
@@ -247,6 +249,7 @@ test("route modes keep separate success, failure, and taxi estimate states", asy
     await page.setViewportSize({ width: 375, height: 812 });
   }
   await page.getByRole("button", { name: "市内路线" }).click();
+  await expect(page.getByRole("combobox", { name: "路线所在城市", exact: true })).toHaveValue("hangzhou");
   await page.getByRole("button", { name: "查询公交 / 地铁路线" }).click();
   await expect(page.getByRole("region", { name: "公交 / 地铁查询结果" })).toContainText("未提供地图线路，不绘制直线或估算路径。");
 

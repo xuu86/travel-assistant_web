@@ -961,7 +961,7 @@ export function App() {
           <WeatherPanel cityName={destination.name} state={weatherState} />
             </div>
             <div className="workspace-view" hidden={activeView !== "budget"} key={`budget-${workspaceKey}`}><BudgetPanel destinationName={destination.name} injectedCost={injectedCost} /></div>
-            <div className="workspace-view" hidden={activeView !== "transport"} key={`transport-${workspaceKey}`}><TransportPanel key={workspaceKey} initialDestination={destination.name} initialOrigin={originPlace} originLocationStatus={originLocationStatus} /></div>
+            <div className="workspace-view" hidden={activeView !== "transport"} key={`transport-${workspaceKey}`}><TransportPanel key={workspaceKey} initialDestination={destination.name} initialCityId={destination.id} initialOrigin={originPlace} originLocationStatus={originLocationStatus} /></div>
             <div className="workspace-view" hidden={activeView !== "itinerary"} key={`itinerary-${workspaceKey}`}><ItineraryPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} injectedItem={injectedItinerary} /></div>
             <div className="workspace-view" hidden={activeView !== "checklist"} key={`checklist-${workspaceKey}`}><ChecklistPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} /></div>
             <div className="workspace-view" hidden={activeView !== "notes"} key={`notes-${workspaceKey}`}><NotesPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} /></div>

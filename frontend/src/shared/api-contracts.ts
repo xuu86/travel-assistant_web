@@ -809,6 +809,8 @@ export interface components {
         };
         /** RouteQuery */
         RouteQuery: {
+            /** City Id */
+            city_id?: ("shanghai" | "suzhou" | "wuxi" | "jiaxing" | "hangzhou") | null;
             /** Depart At */
             depart_at?: string | null;
             destination: components["schemas"]["PlaceRef"];

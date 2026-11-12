@@ -73,6 +73,7 @@ def create_app(
         app_settings,
         amadeus_client=transport_amadeus_client,
         flyai_executor=transport_flyai_executor,
+        amap_client=amap_client,
     )
     application.add_middleware(
         CORSMiddleware,

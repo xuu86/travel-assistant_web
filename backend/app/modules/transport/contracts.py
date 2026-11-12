@@ -211,6 +211,7 @@ class RouteQuery(ContractModel):
     destination: PlaceRef
     mode: RouteMode
     depart_at: datetime | None = None
+    city_id: Literal["shanghai", "suzhou", "wuxi", "jiaxing", "hangzhou"] | None = None
 
     @field_validator("depart_at", mode="before")
     @classmethod

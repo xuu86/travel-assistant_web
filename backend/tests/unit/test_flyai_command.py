@@ -120,8 +120,11 @@ def test_concurrency_limit_rejects_without_launching(tmp_path, monkeypatch):
         flyai._SLOTS.release()
 
 
-@pytest.mark.parametrize("mode", ["valid", "wrong-host", "wrong-key", "retry", "oversized"])
-def test_node_guard_enforces_network_boundary_with_fake_cli(mode, tmp_path):
+@pytest.mark.parametrize("query_mode", ["rail", "flight"])
+@pytest.mark.parametrize(
+    "mode", ["valid", "wrong-host", "wrong-key", "wrong-tool", "retry", "oversized"]
+)
+def test_node_guard_enforces_network_boundary_with_fake_cli(mode, query_mode, tmp_path):
     folder = tmp_path / "backend/app/modules/transport/providers"
     folder.mkdir(parents=True)
     guard = folder / "flyai_runner.cjs"
@@ -133,8 +136,11 @@ def test_node_guard_enforces_network_boundary_with_fake_cli(mode, tmp_path):
         """const mode=process.env.TEST_MODE;
 const url=mode==='wrong-host'?'https://invalid.test/mcp':'https://flyai.open.fliggy.com/mcp';
 const authKey=mode==='wrong-key'?'bad':process.env.FLYAI_API_KEY;
+const flight=process.env.TEST_QUERY_MODE==='flight';
+const tool=(flight !== (mode==='wrong-tool'))?'search_flight':'search_domestic_train';
+if(process.argv[2] !== (flight?'search-flight':'search-train')) process.exit(1);
 const options={method:'POST',headers:{Authorization:'Bearer '+authKey},
-body:JSON.stringify({method:'tools/call',params:{name:'search_domestic_train',arguments:{origin:'上海',destination:'杭州',depDate:'2026-11-01'}}})};
+body:JSON.stringify({method:'tools/call',params:{name:tool,arguments:{origin:flight?'PVG':'上海',destination:flight?'PEK':'杭州',depDate:'2026-11-01'}}})};
 (async()=>{try {
  const result=await fetch(url,options);
  if(mode==='retry') await fetch(url,options);
@@ -149,7 +155,14 @@ body:JSON.stringify({method:'tools/call',params:{name:'search_domestic_train',ar
 };""")
     result = subprocess.run(
         [NODE, "--require", str(preload), str(guard)],
-        input=json.dumps({"origin": "上海", "destination": "杭州", "date": "2026-11-01"}).encode(),
+        input=json.dumps(
+            {
+                "mode": query_mode,
+                "origin": "PVG" if query_mode == "flight" else "上海",
+                "destination": "PEK" if query_mode == "flight" else "杭州",
+                "date": "2026-11-01",
+            }
+        ).encode(),
         capture_output=True,
         timeout=5,
         env={
@@ -158,6 +171,7 @@ body:JSON.stringify({method:'tools/call',params:{name:'search_domestic_train',ar
             "FLYAI_APP_TIMEOUT_MS": "1000",
             "FLYAI_APP_MAX_RESPONSE_BYTES": "1024",
             "TEST_MODE": mode,
+            "TEST_QUERY_MODE": query_mode,
         },
     )
     assert KEY.encode() not in result.stdout + result.stderr

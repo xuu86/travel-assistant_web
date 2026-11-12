@@ -171,6 +171,8 @@ class TransportService:
         state, error_code, message, retryable = _PROVIDER_FAILURES.get(
             status, _PROVIDER_FAILURES["unavailable"]
         )
+        if result_type is RouteResult and status == "no_coverage":
+            message += "请确认路线城市并补充具体站点、景点或地址；同名地点需进一步区分。"
         return result_type(
             state=state,
             items=[],

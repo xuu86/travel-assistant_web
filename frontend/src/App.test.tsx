@@ -296,7 +296,8 @@ describe("App feature navigation", () => {
 
     fireEvent.click(getToolButton("交通"));
     expect(screen.getByRole("heading", { name: "交通查询" })).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("交通服务尚未配置");
+    expect(screen.getByText(/提交查询后显示来源与结果/)).toBeVisible();
+    expect(screen.queryByText("交通服务尚未配置")).not.toBeInTheDocument();
     expect(getToolButton("交通")).toHaveAttribute("aria-pressed", "true");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 

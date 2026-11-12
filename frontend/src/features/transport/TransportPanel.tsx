@@ -19,9 +19,14 @@ type EvidenceState = components["schemas"]["EvidenceState"];
 type FareOffer = components["schemas"]["FareOffer"];
 type RouteOption = components["schemas"]["RouteOption"];
 const EMPTY_PLACE: PlaceRef = { display_name: "", coordinate_system: "WGS84" };
+const ROUTE_CITIES = [
+  { id: "shanghai", name: "上海" }, { id: "suzhou", name: "苏州" },
+  { id: "wuxi", name: "无锡" }, { id: "jiaxing", name: "嘉兴" },
+  { id: "hangzhou", name: "杭州" },
+] as const;
+type RouteCity = typeof ROUTE_CITIES[number]["id"];
 
 type QueryState<T> =
-  | { status: "unconfigured" }
   | { status: "idle" }
   | { status: "loading" }
   | { status: "result"; data: T }
@@ -198,12 +203,6 @@ function ResultNotice<T extends {
 }>(
   { state, kind }: { state: QueryState<T>; kind: string },
 ) {
-  if (state.status === "unconfigured") {
-    return <p className="transport-result-note transport-result-note--unconfigured" role="status" aria-live="polite">
-      <strong>交通服务尚未配置</strong>
-      <span>提交查询后仍不会使用测试数据或旧结果填补。</span>
-    </p>;
-  }
   if (state.status === "idle") {
     return <p className="transport-empty-note">提交查询后显示来源与结果；未配置数据源时不会用测试路线或旧结果填补。</p>;
   }
@@ -386,10 +385,12 @@ function RouteCards({ data }: { data: RouteResponse }) {
 
 export function TransportPanel({
   initialDestination,
+  initialCityId,
   initialOrigin = EMPTY_PLACE,
   originLocationStatus = "idle",
 }: {
   initialDestination: string;
+  initialCityId?: string;
   initialOrigin?: PlaceRef;
   originLocationStatus?: "idle" | "loading" | "resolved" | "error";
 }) {
@@ -406,13 +407,17 @@ export function TransportPanel({
   const [adultCount, setAdultCount] = useState("1");
   const [childCount, setChildCount] = useState("");
   const [departAt, setDepartAt] = useState("");
+  const [routeCity, setRouteCity] = useState<RouteCity | "">(
+    ROUTE_CITIES.find((city) => city.id === initialCityId)?.id
+      ?? ROUTE_CITIES.find((city) => initialDestination.includes(city.name))?.id ?? "",
+  );
   const [fareFormError, setFareFormError] = useState<string | null>(null);
   const [routeFormError, setRouteFormError] = useState<string | null>(null);
-  const [fareState, setFareState] = useState<QueryState<FareResponse>>({ status: "unconfigured" });
+  const [fareState, setFareState] = useState<QueryState<FareResponse>>({ status: "idle" });
   const [routeStates, setRouteStates] = useState<Record<RouteMode, QueryState<RouteResponse>>>(() => ({
-    transit: { status: "unconfigured" },
-    walking: { status: "unconfigured" },
-    taxi: { status: "unconfigured" },
+    transit: { status: "idle" },
+    walking: { status: "idle" },
+    taxi: { status: "idle" },
   }));
   const fareSequence = useRef(0);
   const routeSequences = useRef<Record<RouteMode, number>>({ transit: 0, walking: 0, taxi: 0 });
@@ -522,7 +527,7 @@ export function TransportPanel({
         return;
       }
       if (totalPassengers > 9) {
-        setFareFormError("Amadeus 航班查询的成人加儿童总数不能超过 9 人。");
+        setFareFormError("航班查询的成人加儿童总数不能超过 9 人。");
         return;
       }
       originPlace.place_id = originAirportCode;
@@ -553,6 +558,10 @@ export function TransportPanel({
   async function handleRouteSearch(mode: RouteMode) {
     setRouteFormError(null);
     if (!validLocations(setRouteFormError)) return;
+    if (!routeCity) {
+      setRouteFormError("请选择路线所在城市，并填写具体起点和目的地。");
+      return;
+    }
 
     let departure: string | null = null;
     if (departAt) {
@@ -572,6 +581,7 @@ export function TransportPanel({
       origin: buildPlace(origin.display_name, origin),
       destination: buildPlace(destination),
       mode,
+      city_id: routeCity,
       depart_at: departure,
     } satisfies components["schemas"]["RouteQuery"];
     const sequence = ++routeSequences.current[mode];
@@ -748,9 +758,19 @@ export function TransportPanel({
         ) : (
           <div className="transport-route-search">
             <label className="transport-field transport-route-search__time">
+              <span className="transport-field__label" id="transport-route-city-label">路线所在城市</span>
+              <select value={routeCity} onChange={(event) => {
+                clearRouteResults(); setRouteCity(event.target.value as RouteCity | "");
+              }} aria-labelledby="transport-route-city-label" aria-describedby="transport-route-city-hint">
+                <option value="">选择城市</option>
+                {ROUTE_CITIES.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}
+              </select>
+              <span className="transport-field__hint" id="transport-route-city-hint">用于区分同名地点；请填写具体站点、景点或地址。</span>
+            </label>
+            <label className="transport-field transport-route-search__time">
               <span className="transport-field__label">出发时间（可选）</span>
               <input type="datetime-local" value={departAt} onChange={(event) => { clearRouteResults(); setDepartAt(event.target.value); }} aria-describedby="transport-depart-at-hint" />
-              <span className="transport-field__hint" id="transport-depart-at-hint">按本机时区提交；未填写时不声称按实时交通计算。</span>
+              <span className="transport-field__hint" id="transport-depart-at-hint">按本机时区提交；高德耗时为常规估算，不反映指定时刻交通。</span>
             </label>
             <p className="transport-field__hint">每种方式单独查询和重试，一种失败不会清除其他方式的结果。</p>
             <div className="transport-route-actions">

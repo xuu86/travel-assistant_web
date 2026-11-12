@@ -82,8 +82,11 @@ class FlyAICommand:
         )
         payload = json.dumps(
             {
-                "origin": query.origin.display_name.strip(),
-                "destination": query.destination.display_name.strip(),
+                "mode": query.mode,
+                "origin": (query.origin.place_id or "").strip().upper()
+                if query.mode == "flight" else query.origin.display_name.strip(),
+                "destination": (query.destination.place_id or "").strip().upper()
+                if query.mode == "flight" else query.destination.display_name.strip(),
                 "date": query.travel_date.isoformat(),
             },
             ensure_ascii=False,
@@ -176,6 +179,7 @@ class FlyAICommand:
 
 class FlyAITrainFareProvider:
     provider_id = "flyai.search-train"
+    mode = "rail"
 
     def __init__(
         self,
@@ -194,7 +198,7 @@ class FlyAITrainFareProvider:
         self._now = now or (lambda: datetime.now(UTC))
 
     def search_fares(self, query: FareQuery, *, request_id: UUID) -> FareResult:
-        if query.mode != "rail":
+        if query.mode != self.mode:
             raise TransportProviderError("no_coverage")
         key = self._key.get_secret_value().strip()
         if not key:
@@ -207,6 +211,7 @@ class FlyAITrainFareProvider:
             for char in ("\x00", "\r", "\n")
         ):
             raise TransportProviderError("no_coverage")
+        self.validate_query(query)
         output = self._executor.run(query, key=key, timeout=self._timeout, limit=self._limit)
         if output.request_count != 1 or not output.authenticated:
             raise TransportProviderError("unavailable")
@@ -220,9 +225,16 @@ class FlyAITrainFareProvider:
             raise TransportProviderError("unavailable")
         try:
             payload = json.loads(output.stdout)
-            return map_train_result(payload, query, request_id=request_id, now=self._now())
+            return self.map_result(payload, query, request_id=request_id, now=self._now())
         except ValueError, TypeError, KeyError, ValidationError:
             raise TransportProviderError("unavailable") from None
+
+    def validate_query(self, query: FareQuery) -> None:
+        pass
+
+    @staticmethod
+    def map_result(payload, query, *, request_id, now):
+        return map_train_result(payload, query, request_id=request_id, now=now)
 
 
 def _text(value: object, limit: int) -> str | None:

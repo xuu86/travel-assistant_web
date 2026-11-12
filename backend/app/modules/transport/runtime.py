@@ -7,8 +7,10 @@ import httpx
 from app.core.config import Settings
 from app.modules.transport.contracts import FareQuery, FareResult
 from app.modules.transport.providers.amadeus import AmadeusFareProvider
+from app.modules.transport.providers.amap import AmapRouteProvider
 from app.modules.transport.providers.base import FareProvider, TransportProviderError
 from app.modules.transport.providers.flyai import CliExecutor, FlyAITrainFareProvider
+from app.modules.transport.providers.flyai_flight import FlyAIFlightFareProvider
 from app.modules.transport.service import TransportService
 
 
@@ -28,6 +30,7 @@ def create_transport_service(
     *,
     amadeus_client: httpx.Client | None = None,
     flyai_executor: CliExecutor | None = None,
+    amap_client: httpx.Client | None = None,
 ) -> TransportService:
     """Build transport providers only from explicit, complete server configuration."""
 
@@ -55,4 +58,24 @@ def create_transport_service(
             max_response_bytes=settings.transport_flyai_max_response_bytes,
             executor=flyai_executor,
         )
-    return TransportService(fare_provider=ModeFareProvider(providers) if providers else None)
+    if (
+        settings.transport_fare_provider == "flyai"
+        and settings.transport_flyai_api_key
+        and settings.transport_flyai_api_key.get_secret_value().strip()
+    ):
+        providers["flight"] = FlyAIFlightFareProvider(
+            api_key=settings.transport_flyai_api_key,
+            node_path=settings.transport_flyai_node_path,
+            timeout_seconds=settings.transport_flyai_timeout_seconds,
+            max_response_bytes=settings.transport_flyai_max_response_bytes,
+            executor=flyai_executor,
+        )
+    route_provider = (
+        AmapRouteProvider(settings, client=amap_client)
+        if settings.transport_route_provider == "amap" and settings.amap_configured
+        else None
+    )
+    return TransportService(
+        fare_provider=ModeFareProvider(providers) if providers else None,
+        route_provider=route_provider,
+    )

@@ -29,7 +29,7 @@ test("budget workflow reports reserve reminder and quote source accurately", asy
   });
 
   await enterWorkspace(page);
-  await page.getByRole("button", { name: "预算" }).click();
+  await page.getByRole("button", { name: "预算", exact: true }).click();
   await expect(page.getByRole("heading", { name: "旅行预算" })).toBeVisible();
   await page.getByRole("textbox", { name: "整趟总预算（元）" }).fill("3000");
   await page.getByRole("combobox", { name: "类别" }).selectOption("住宿");
@@ -52,7 +52,7 @@ test("budget workflow reports reserve reminder and quote source accurately", asy
 test("budget form remains within a 375px viewport and supports keyboard use", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await enterWorkspace(page);
-  await page.getByRole("button", { name: "预算" }).focus();
+  await page.getByRole("button", { name: "预算", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "旅行预算" })).toBeVisible();
 
@@ -84,7 +84,7 @@ test("shows a minimum known overspend without hiding missing costs", async ({ pa
   });
 
   await enterWorkspace(page);
-  await page.getByRole("button", { name: "预算" }).click();
+  await page.getByRole("button", { name: "预算", exact: true }).click();
   await page.getByRole("textbox", { name: "整趟总预算（元）" }).fill("3000");
   await page.getByRole("textbox", { name: "费用项 1 已支付（元）" }).fill("3500");
   await page.getByRole("button", { name: "计算预算" }).click();

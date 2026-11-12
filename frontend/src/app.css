@@ -220,6 +220,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .feature-nav {
   counter-reset: nav-step;
   display: flex;
+  flex-wrap: wrap;
   width: 100%;
   max-width: 100%;
   gap: 6px;

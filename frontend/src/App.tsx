@@ -806,6 +806,10 @@ export function App() {
                     <span className="feature-nav__icon" aria-hidden="true">⇄</span>
                     <span className="feature-nav__text"><strong>交通</strong><small aria-hidden="true">TRANSPORT</small></span>
                   </button>
+                  <button type="button" aria-pressed={activeView === "hotels"} onClick={() => setActiveView("hotels")}><span className="feature-nav__icon" aria-hidden="true">⌂</span><span className="feature-nav__text"><strong>酒店</strong><small aria-hidden="true">HOTELS</small></span></button>
+                  <button type="button" aria-pressed={activeView === "activities"} onClick={() => setActiveView("activities")}><span className="feature-nav__icon" aria-hidden="true">◇</span><span className="feature-nav__text"><strong>活动</strong><small aria-hidden="true">ACTIVITIES</small></span></button>
+                  <button type="button" aria-pressed={activeView === "attractions"} onClick={() => setActiveView("attractions")}><span className="feature-nav__icon" aria-hidden="true">◎</span><span className="feature-nav__text"><strong>景点</strong><small aria-hidden="true">ATTRACTIONS</small></span></button>
+                  <button type="button" aria-pressed={activeView === "maps"} onClick={() => setActiveView("maps")}><span className="feature-nav__icon" aria-hidden="true">⌖</span><span className="feature-nav__text"><strong>地图</strong><small aria-hidden="true">MAPS</small></span></button>
                   <button type="button" aria-pressed={activeView === "itinerary"} onClick={() => setActiveView("itinerary")}>
                     <span className="feature-nav__icon" aria-hidden="true">☰</span>
                     <span className="feature-nav__text"><strong>行程</strong><small aria-hidden="true">ITINERARY</small></span>
@@ -828,45 +832,9 @@ export function App() {
             <div className="workspace-hint">
               <span className="workspace-hint__tag">当前工作区</span>
               <span className="workspace-hint__text">{destination.name} · {startDate} 至 {endDate}{rangeDays !== null && rangeDays > 0 ? ` · ${rangeDays} 天` : ""}</span>
-              <span className="workspace-hint__note">七个模块共享同一目的地与日期；切换工具不会重复请求数据。</span>
+              <span className="workspace-hint__note">十一个模块共享同一目的地与日期；切换工具不会重复请求数据。</span>
             </div>
-            <div className="feature-nav__bar">
-              <nav className="feature-nav" aria-label="旅行工具">
-                <button type="button" aria-pressed={activeView === "weather"} onClick={() => setActiveView("weather")}>
-                  <span className="feature-nav__icon" aria-hidden="true">☁</span>
-                  <span className="feature-nav__text"><strong>天气</strong><small aria-hidden="true">WEATHER</small></span>
-                </button>
-                <button type="button" aria-pressed={activeView === "budget"} onClick={() => setActiveView("budget")}>
-                  <span className="feature-nav__icon" aria-hidden="true">¥</span>
-                  <span className="feature-nav__text"><strong>预算</strong><small aria-hidden="true">BUDGET</small></span>
-                </button>
-                <button type="button" aria-pressed={activeView === "transport"} onClick={() => setActiveView("transport")}>
-                  <span className="feature-nav__icon" aria-hidden="true">⇄</span>
-                  <span className="feature-nav__text"><strong>交通</strong><small aria-hidden="true">TRANSPORT</small></span>
-                </button>
-                <button type="button" aria-pressed={activeView === "hotels"} onClick={() => setActiveView("hotels")}><span className="feature-nav__icon" aria-hidden="true">⌂</span><span className="feature-nav__text"><strong>酒店</strong><small aria-hidden="true">HOTELS</small></span></button>
-                <button type="button" aria-pressed={activeView === "activities"} onClick={() => setActiveView("activities")}><span className="feature-nav__icon" aria-hidden="true">◇</span><span className="feature-nav__text"><strong>活动</strong><small aria-hidden="true">ACTIVITIES</small></span></button>
-                <button type="button" aria-pressed={activeView === "attractions"} onClick={() => setActiveView("attractions")}><span className="feature-nav__icon" aria-hidden="true">◎</span><span className="feature-nav__text"><strong>景点</strong><small aria-hidden="true">ATTRACTIONS</small></span></button>
-                <button type="button" aria-pressed={activeView === "maps"} onClick={() => setActiveView("maps")}><span className="feature-nav__icon" aria-hidden="true">⌖</span><span className="feature-nav__text"><strong>地图</strong><small aria-hidden="true">MAPS</small></span></button>
-                <button type="button" aria-pressed={activeView === "itinerary"} onClick={() => setActiveView("itinerary")}>
-                  <span className="feature-nav__icon" aria-hidden="true">☰</span>
-                  <span className="feature-nav__text"><strong>行程</strong><small aria-hidden="true">ITINERARY</small></span>
-                </button>
-                <button type="button" aria-pressed={activeView === "checklist"} onClick={() => setActiveView("checklist")}>
-                  <span className="feature-nav__icon" aria-hidden="true">✓</span>
-                  <span className="feature-nav__text"><strong>清单</strong><small aria-hidden="true">CHECKLIST</small></span>
-                </button>
-                <button type="button" aria-pressed={activeView === "notes"} onClick={() => setActiveView("notes")}>
-                  <span className="feature-nav__icon" aria-hidden="true">✎</span>
-                  <span className="feature-nav__text"><strong>笔记</strong><small aria-hidden="true">NOTES</small></span>
-                </button>
-                <button type="button" aria-pressed={activeView === "assistant"} onClick={() => setActiveView("assistant")}>
-                  <span className="feature-nav__icon" aria-hidden="true">✦</span>
-                  <span className="feature-nav__text"><strong>AI 助手</strong><small aria-hidden="true">ASSISTANT</small></span>
-                </button>
-              </nav>
-              <p className="feature-nav__caption">WORKSPACE / 11 MODULES</p>
-            </div>
+
             <section className="trip-date-bar" aria-label="旅行日期">
               <p className="trip-date-bar__title">旅行日期</p>
               <label><span>开始</span><input type="date" aria-label="旅行开始日期" value={tripStartDate} onChange={(event) => setTripStartDate(event.target.value)} /></label>

@@ -29,7 +29,7 @@ const mockForecast = {
 } as const;
 
 function getToolButton(name: string) {
-  return within(screen.getAllByRole("navigation", { name: "旅行工具" })[0]).getByRole("button", { name });
+  return within(screen.getByRole("navigation", { name: "旅行工具" })).getByRole("button", { name });
 }
 
 const unconfiguredForecast = {

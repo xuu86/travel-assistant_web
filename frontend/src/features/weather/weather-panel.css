@@ -44,8 +44,8 @@
   margin: 0;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: clamp(26px, 3.2vw, 32px);
-  letter-spacing: -.035em;
+  font-size: 32px;
+  letter-spacing: 0;
 }
 
 .weather-panel__subtitle {
@@ -159,7 +159,7 @@
   display: inline-block;
   font-family: var(--font-display);
   font-size: 33px;
-  letter-spacing: -.04em;
+  letter-spacing: 0;
   transition: color 200ms ease, transform 220ms ease;
 }
 .weather-day:hover .weather-day__temperature strong { color: var(--navy); transform: scale(1.05); }

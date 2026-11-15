@@ -37,9 +37,9 @@ const MODULE_OPTIONS: { no: string; title: string; desc: string; imageSrc: strin
   { no: "01", title: "天气", desc: "查询已登记城市的逐日预报，缺失日期会明确标注，不用演示数据补齐。", imageSrc: "/assets/modules/weather.jpg" },
   { no: "02", title: "预算", desc: "用整趟总额与费用明细计算结余；留空表示待核实，不等于 0 元。", imageSrc: "/assets/modules/budget.jpg" },
   { no: "03", title: "交通", desc: "查询航班与铁路班次，页面不展示票价信息。", imageSrc: "/assets/modules/transport.jpg" },
-  { no: "04", title: "行程", desc: "按天添加安排并可锁定，草稿只保存在当前页面，不连接订票或地图服务。", imageSrc: "/assets/modules/itinerary.jpg" },
-  { no: "05", title: "清单", desc: "按证件、衣物、电子与应急分类勾选，进度只保存在当前页面。", imageSrc: "/assets/modules/checklist.jpg" },
-  { no: "06", title: "笔记", desc: "随手记录想法与待确认信息，笔记不会上传，也不会跨刷新保留。", imageSrc: "/assets/modules/notes.jpg" },
+  { no: "04", title: "行程", desc: "按天添加安排并可锁定，草稿保存在此浏览器的当前用户分区，可在同一浏览器恢复。", imageSrc: "/assets/modules/itinerary.jpg" },
+  { no: "05", title: "清单", desc: "按证件、衣物、电子与应急分类勾选，进度保存在此浏览器的当前用户分区。", imageSrc: "/assets/modules/checklist.jpg" },
+  { no: "06", title: "笔记", desc: "随手记录想法与待确认信息，笔记保存在此浏览器的当前用户分区，不会上传或跨设备同步。", imageSrc: "/assets/modules/notes.jpg" },
   { no: "07", title: "AI 助手", desc: "只依据本轮明确提供的信息回答，条件建议需要你另行确认后才会应用。", imageSrc: "/assets/modules/assistant.jpg" },
 ];
 
@@ -628,6 +628,8 @@ export function App() {
                   key={city.id}
                   src={city.imageUrl}
                   alt=""
+                  width={1200}
+                  height={800}
                   className={activeCityId === city.id ? "is-active" : undefined}
                   loading="lazy"
                   decoding="async"
@@ -678,44 +680,41 @@ export function App() {
               </header>
               <ul>
                 {CITY_OPTIONS.map((city, index) => (
-                  <li
-                    key={city.id}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={selectedDestinationId === city.id}
-                    data-tooltip-label={`${city.name} · ${city.province}`}
-                    onMouseEnter={() => setHoveredCityId(city.id)}
-                    onFocus={() => setHoveredCityId(city.id)}
-                    onBlur={() => setHoveredCityId(null)}
-                    onClick={() => { setSelectedDestinationId(city.id); setDestinationError(null); }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setSelectedDestinationId(city.id);
-                        setDestinationError(null);
-                      }
-                    }}
-                  >
-                    <img
-                      className="destination-index__thumb"
-                      src={city.imageUrl}
-                      alt={`${city.name} 风景`}
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                    />
-                    <span className="destination-index__no">{String(index + 1).padStart(2, "0")}</span>
-                    <strong>{city.name}</strong>
-                    <span className="destination-index__province">{city.province}</span>
-                    {/* hover 弹出大图预览 */}
-                    <img
-                      className="destination-index__popup"
-                      src={city.imageUrl}
-                      alt=""
-                      aria-hidden="true"
-                      loading="lazy"
-                      decoding="async"
-                    />
+                  <li key={city.id} data-tooltip-label={`${city.name} · ${city.province}`} onMouseEnter={() => setHoveredCityId(city.id)}>
+                    <button
+                      type="button"
+                      className="destination-index__choice"
+                      aria-label={`${city.name} · ${city.province}`}
+                      aria-pressed={selectedDestinationId === city.id}
+                      onFocus={() => setHoveredCityId(city.id)}
+                      onBlur={() => setHoveredCityId(null)}
+                      onClick={() => { setSelectedDestinationId(city.id); setDestinationError(null); }}
+                    >
+                      <img
+                        className="destination-index__thumb"
+                        src={city.imageUrl}
+                        alt={`${city.name} 风景`}
+                        width={36}
+                        height={36}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                      <span className="destination-index__no">{String(index + 1).padStart(2, "0")}</span>
+                      <strong>{city.name}</strong>
+                      <span className="destination-index__province">{city.province}</span>
+                      {/* hover 弹出大图预览 */}
+                      <img
+                        className="destination-index__popup"
+                        src={city.imageUrl}
+                        alt=""
+                        aria-hidden="true"
+                        width={180}
+                        height={180}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -732,28 +731,22 @@ export function App() {
               <div className="module-scroll-wrap">
                 <ul className="module-scroll" role="list">
                   {MODULE_OPTIONS.map((m, idx) => (
-                    <li
-                      key={m.no}
-                      className="module-card"
-                      role="button"
-                      tabIndex={0}
-                      aria-pressed={selectedModuleIdx === idx}
-                      onClick={() => setSelectedModuleIdx(selectedModuleIdx === idx ? null : idx)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setSelectedModuleIdx(selectedModuleIdx === idx ? null : idx);
-                        }
-                      }}
-                    >
-                      <div className="module-card__body">
-                        <span className="module-card__no">{m.no}</span>
-                        <strong>{m.title}</strong>
-                        <p>{m.desc}</p>
-                      </div>
-                      <div className="module-card__media" aria-hidden="true">
-                        <img src={m.imageSrc} alt="" loading="lazy" />
-                      </div>
+                    <li key={m.no}>
+                      <button
+                        type="button"
+                        className="module-card"
+                        aria-pressed={selectedModuleIdx === idx}
+                        onClick={() => setSelectedModuleIdx(selectedModuleIdx === idx ? null : idx)}
+                      >
+                        <div className="module-card__body">
+                          <span className="module-card__no">{m.no}</span>
+                          <strong>{m.title}</strong>
+                          <p>{m.desc}</p>
+                        </div>
+                        <div className="module-card__media" aria-hidden="true">
+                          <img src={m.imageSrc} alt="" width={1200} height={800} loading="lazy" />
+                        </div>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -787,6 +780,8 @@ export function App() {
                     className="workspace-destination__thumb"
                     src={destination.imageUrl}
                     alt={`${destination.name} 缩略图`}
+                    width={48}
+                    height={48}
                     loading="lazy"
                     decoding="async"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}

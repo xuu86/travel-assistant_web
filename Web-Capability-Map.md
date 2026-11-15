@@ -22,15 +22,17 @@
 | `maps` | 地图展示和日程联动；不拥有路线查询 | itinerary、transport |
 | `exports` | 用户主动打印 PDF，输出费用与事实状态 | itinerary、budget、local-storage |
 
-## 当前实现状态（2026-11-04）
+## 当前实现状态（2026-11-16）
 
-本图描述目标模块边界，不代表模块已交付。当前 Web 已有 foundation、destination-workspace、weather、transport（机票/铁路/路线查询流程）、budget、assistant 和 itinerary 的部分实现；状态边界如下：
+本图描述目标模块边界，不代表模块已交付。当前 Web 已有 foundation、destination-workspace、weather、transport、budget、assistant、itinerary、auth、local-storage 与 imports 的部分或完整本地实现；状态边界如下：
 
 - 天气：Open-Meteo adapter 已实现；2026-10-29 完成五个注册城市各一次、单日真实连通性检查。该快照不证明持续可用、精度、未来覆盖或公网/商业使用资格，见 [天气 Provider 验收](docs/acceptance/weather-provider.md) 与 [Gate](docs/weather-provider-gate.md)。
-- 交通：Amadeus 航班 adapter 已实现但真实航班数据未验收；FlyAI 官方 CLI 铁路 provider 已接入，2026-10-31 完成本地真实 API 查询，票价与余票保持未知；市内公交、地铁、步行及出租车路线仍无 provider。
+- 交通：当前页面仅提供航班／铁路班次查询，不显示票价、余票、购票入口或市内路线；后端报价／路线契约与 provider 仍在，但 UI 不把未知金额暴露为报价。FlyAI 官方 CLI 铁路 provider 于 2026-10-31 完成本地真实 API 查询，票价与余票保持未知；真实航班数据及市内路线仍未验收。
+- 预算／导入：预算计算和费用草稿可用；DOCX、PDF、JPG/JPEG、PNG 订单在浏览器本机解析/OCR，用户核对后才新增费用。重复订单不自动识别或合并，真实票价及订单真伪不验证。
 - 酒店、活动、景点和地图：高德 Web 服务 POI/静态地图代理、四个后端路由、前端搜索工作区、分页、选点联动、地图缩放和失败状态已实现；后端 407 项测试、前端 98 项单测及上海真实连通性快照已记录。地点查询不提供酒店报价/余房、活动档期或景点开放/预约事实，地图不拥有路线查询。
-- 行程：仅前端内存中的单城市手工草稿；尚无服务端 API、持久化、账号、owner scope、跨设备同步、地图联动或 PDF 导出。
-- 导入、推荐及账号模块未实现；local-storage 与 exports 未实现。
+- 行程：单城市手工草稿与确认状态通过 IndexedDB 按 owner 保存并可在本浏览器恢复；仍无行程服务端读写 API、跨设备同步、地图路线联动或 PDF 导出。
+- 认证与本地保存：游客/测试账号登录、登出保留、IndexedDB 分区和工作区快照已实现；真实账号未配置，无云端同步。会话保存在单进程内存，只适用于本机/受控局域网测试。
+- 亮点方案 L1“信息护照”已接入天气、班次、地点、预算和行程；首期 L2“未知项账本”、L6“行程体检报告”尚未实现。推荐及 exports 尚未实现。
 - 助手已有离线/fake 流程和 provider adapter；真实模型服务的资格、条款、费用、隐私及质量仍待核验。
 
 以上状态不改变获批的模块职责与依赖方向；实时数据、持久化和生产能力必须依据各自验收证据判断。

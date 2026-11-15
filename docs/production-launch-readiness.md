@@ -14,10 +14,10 @@
 | 铁路 | `POST /api/transport/fares/search` | FlyAI 官方 CLI provider 已接入；一次本地真实 API 查询通过，但返回金额及余票未知，不构成价格/库存验收 | 账户权限、配额、用途、缓存及价格语义仍待核实；不以未知值推断可购或确定票价 |
 | 市内路线 | `POST /api/transport/routes/search` | 契约与 fake 流程已实现；未接入路线 provider | 地图/路径规划 API；需按步行、公交、驾车/出租车逐项确认覆盖、计费、许可和路线数据用途 |
 | AI 助手 | `POST /api/assistant/chat` | 服务端 adapter 已实现；无配置时为 `unconfigured`，未验证真实模型 | 支持当前 OpenAI-compatible Chat Completions 的模型 API；E-007 尚未核准供应商、模型、价格、地区、隐私条款与质量 |
-| 行程 | 当前无服务端读写接口 | 前端手动草稿只存当前页面内存 | 若需要刷新恢复/跨设备，须先建设身份、owner scope 和行程存储 API；不能用模型 API 替代 |
+| 行程 | 当前无服务端读写接口 | 前端手工行程、预算、清单、笔记和已确认费用保存在浏览器 IndexedDB，并按游客/账号 owner 分区；没有云端备份或跨设备同步 | 若要提供云端持久化/跨设备恢复，须另建带 owner authorization 的存储 API、迁移、删除和备份；不能用模型 API 替代 |
 | 酒店/活动/景点/地图 | 高德 Web 服务 POI、地理编码、静态地图代理已接入；`/api/{hotels,activities,attractions,maps}/search` 与 `/api/maps/static` 已有前端调用和自动化测试；上海真实连通性快照通过 | 可本机演示；生产仍需确认高德 Web 服务 Key 的主体、配额、白名单、商业/展示许可和监控。POI 不包含酒店库存/报价、活动档期或景点开放预约状态 | 生产前完成高德账号与用途授权、配额/费用告警、真实生产 origin smoke；价格/库存/活动档期/开放预约须另接有授权的数据源 |
 
-酒店、活动、景点与地图能力已完成本地实现与验收，但高德生产授权、配额、商业用途和持续可用性仍待上线前确认；导入、推荐、认证、持久化和导出未实现，行程仅为前端内存手工草稿。地图 POI 搜索不等同市内路线 provider。模块状态详见 [Web Capability Map](../Web-Capability-Map.md)、[Amap SPEC](SPEC-amap-integration.md) 与 [Amap 验收记录](acceptance/amap.md)。
+酒店、活动、景点与地图能力已完成本地实现与验收，但高德生产授权、配额、商业用途和持续可用性仍待上线前确认；账号认证、owner 分区的浏览器本地持久化及本机订单解析/OCR 已实现，尚无云端持久化、推荐或导出。地图 POI 搜索不等同市内路线 provider。模块状态详见 [Web Capability Map](../Web-Capability-Map.md)、[Amap SPEC](SPEC-amap-integration.md) 与 [Amap 验收记录](acceptance/amap.md)。
 
 现有 REST 路径的 schema 可在运行服务的 `/docs` 和 `/openapi.json` 查看。路径存在只说明 API 契约，不表示后端已有真实数据来源。
 
@@ -52,8 +52,8 @@
 
 ## 3. 公网部署前的工程门槛
 
-1. **访问控制与费用保护：** 设计游客/登录身份、owner scope、敏感写操作保护；为 AI 和所有高成本外部 API 加按主体/IP 限流、并发上限、配额/预算告警和供应商账单告警。CORS 不是认证。生产限流需支持多 worker/多实例，不能依赖单进程内存计数。
-2. **持久化与隐私：** 若承诺保存行程，先定义数据库、迁移、备份/恢复、数据删除/导出、保留期限、加密和访问审计；未实现前要明确告知草稿刷新即丢失，不收集不必要的敏感旅行凭证。
+1. **访问控制与费用保护：** 当前有游客/测试账号会话与本地 owner 分区，但会话为单进程内存，服务端没有行程写 API 或云端 owner 数据；生产前需配置可用的多实例身份/会话、服务端 owner authorization，并为 AI 和高成本外部 API 配主体/IP 限流、并发上限、配额/预算告警。CORS 不是认证。
+2. **持久化与隐私：** 当前仅将已批准草稿存入浏览器 IndexedDB；清理站点数据可能造成不可恢复丢失。若承诺云端/跨设备保存，先定义数据库、迁移、备份/恢复、删除/导出、保留期限、加密和访问审计；继续明确本地数据不等于云端备份。
 3. **HTTPS 和网络边界：** 生产静态资源用构建产物 `frontend/dist`，由 CDN/静态托管/反向代理服务；FastAPI 用受管 ASGI 进程运行在私网，禁止直接公开开发端口。设置域名、TLS 自动续期、HTTP→HTTPS、HSTS、可信代理头、Host 校验、防火墙及请求体上限。
 4. **生产配置：** 设置 `APP_ENV=production`、实际前端 HTTPS origin 的 `APP_ALLOWED_ORIGINS`、`APP_LOG_LEVEL=INFO`。当前 Settings 会拒绝 production 下的 HTTP origin；不要用 `*` 放开 CORS。生产密钥放云 Secret Manager，轮换而不落日志。
 5. **可观测性与恢复：** 当前 `/api/health` 仅检查进程可响应，不是依赖 readiness。补充部署平台 liveness/readiness、错误率/延迟/provider 状态与额度告警、日志访问控制、备份恢复演练和回滚方案；监控标签不得携带请求正文、地点坐标、聊天内容或密钥。
@@ -73,7 +73,7 @@
 | `APP_AMAP_API_KEY` | 高德 Web 服务 Key；酒店、活动、景点 POI 与静态地图共用 | `SecretStr`；只允许后端读取，不能放入 `VITE_*` 或浏览器 | `backend/.env`（不提交）或后端 Secret Manager |
 | `APP_AMAP_TIMEOUT_SECONDS` | 高德单次请求 timeout | 默认 10 秒；后端限制请求体大小并禁止重定向 | 后端环境变量 |
 
-当前没有数据库、认证、Redis 的生产配置项。地图/地点已有后端配置入口，但高德生产授权与持续可用性仍有上述缺口。不要在前端添加 Key，也不要把未实现能力或配置变量当作已接入功能。
+当前没有数据库或 Redis 的生产配置项。`APP_AUTH_TEST_ACCOUNTS` 仅用于本机/受控测试账号注入，不代表生产账号管理配置；地图/地点已有后端配置入口，但高德生产授权与持续可用性仍有上述缺口。不要在前端添加 Key，也不要把测试账号配置或浏览器本地保存表述成生产认证/云端持久化。
 
 ## 5. 本地启动与当前对外边界
 

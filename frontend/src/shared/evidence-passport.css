@@ -10,8 +10,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 36px;
-  padding: 4px 2px;
+  min-height: 44px;
+  padding: 4px 6px;
   color: var(--navy);
   font-weight: 700;
   cursor: pointer;
@@ -45,7 +45,7 @@
 .evidence-passport__details dl > div { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 10px; }
 .evidence-passport__details dt { color: var(--ink-faint); }
 .evidence-passport__details dd { min-width: 0; margin: 0; color: var(--ink); overflow-wrap: anywhere; }
-.evidence-passport__details a { display: inline-flex; align-items: center; min-height: 36px; margin-top: 8px; color: var(--rust-dark); font-weight: 700; }
+.evidence-passport__details a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; color: var(--rust-dark); font-weight: 700; }
 
 @media (max-width: 560px) {
   .evidence-passport__details { position: static; width: min(100%, 360px); margin-top: 4px; }

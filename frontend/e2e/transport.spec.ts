@@ -121,11 +121,15 @@ test("transport starts without a request and keeps synthetic rail details explic
   await expect(page.getByText("G-TEST-101")).toBeVisible();
   await expect(page.getByText(/G-TEST-202/)).toBeVisible();
   await expect(page.getByText(/换乘地点：测试站 B/)).toBeVisible();
-  await page.locator(".transport-results .evidence-passport summary").first().click();
+  const passportToggle = page.locator(".transport-results .evidence-passport summary").first();
+  await passportToggle.click();
+  await expect(page.locator(".robot-mascot")).toBeHidden();
   await expect(page.getByText(/Transport E2E fixture/)).toBeVisible();
   await expect(page.locator(".transport-results").getByText(/票价|费用项目|余量未知|¥|平台提示/)).toHaveCount(0);
   await expect(page.getByText("席别：二等座")).toBeVisible();
   await expect(page.getByRole("link", { name: /详情|购票/ })).toHaveCount(0);
+  await passportToggle.click();
+  await expect(page.locator(".robot-mascot")).toBeVisible();
   expect(fareCalls).toBe(2);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: testInfo.outputPath("railway-results.png"), fullPage: true });

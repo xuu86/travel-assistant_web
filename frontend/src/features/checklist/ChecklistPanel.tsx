@@ -130,7 +130,7 @@ export function ChecklistPanel({ destinationName, startDate, endDate }: Checklis
               >
                 {GROUP_IMAGES[group.category] && (
                   <div className="checklist-group__media" aria-hidden="true">
-                    <img src={GROUP_IMAGES[group.category]} alt="" loading="lazy" />
+                    <img src={GROUP_IMAGES[group.category]} alt="" width={2560} height={1440} loading="lazy" />
                   </div>
                 )}
                 <header className="checklist-group__head">

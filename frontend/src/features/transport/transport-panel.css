@@ -1,7 +1,7 @@
 .transport-panel { display: grid; gap: 22px; }
 .transport-panel__heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
 .transport-panel__eyebrow { margin: 0 0 9px; color: var(--rust); font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
-.transport-panel__heading h1 { margin: 0; font-family: var(--font-display); font-size: clamp(34px, 4vw, 46px); line-height: 1.12; letter-spacing: -.04em; }
+.transport-panel__heading h1 { margin: 0; font-family: var(--font-display); font-size: 46px; line-height: 1.12; letter-spacing: 0; }
 .transport-panel__heading p:last-child { max-width: 680px; margin: 10px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.7; }
 .transport-panel__stamp { flex: 0 0 auto; padding: 8px 10px; border: 1px solid var(--navy); border-radius: var(--radius); background: var(--teal-pale); color: var(--navy); font-family: var(--font-mono); font-size: 10px; font-weight: 700; }
 .transport-query-card { padding: clamp(20px, 4vw, 34px); border: 1px solid var(--line-strong); border-top: 4px solid var(--navy); border-radius: var(--radius); background: var(--paper-light); box-shadow: var(--shadow-card); }
@@ -34,7 +34,7 @@
 .transport-form-error { margin: 16px 0 0; padding: 12px 14px; border: 1px solid rgba(242, 93, 75, 0.24); border-left: 4px solid var(--rust); border-radius: var(--radius); background: var(--error-bg); color: var(--error); font-size: 13px; }
 .transport-query-results { display: grid; gap: 14px; }
 .transport-results-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; }
-.transport-results-heading h3 { margin: 0; font-family: var(--font-display); font-size: 24px; letter-spacing: -.03em; }
+.transport-results-heading h3 { margin: 0; font-family: var(--font-display); font-size: 24px; letter-spacing: 0; }
 .transport-results-heading span { color: var(--ink-faint); font-family: var(--font-mono); font-size: 10px; }
 .transport-empty-note, .transport-result-note { display: grid; gap: 6px; margin: 0; padding: 17px 19px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); color: var(--ink-soft); line-height: 1.65; }
 .transport-empty-note { border-style: dashed; }
@@ -51,7 +51,7 @@
 .transport-evidence--demo { border-color: var(--navy); background: var(--orange-pale); color: var(--ink-soft); }
 .transport-evidence--estimate { border-color: var(--navy); background: var(--orange-pale); color: var(--ink-soft); }
 .transport-evidence--verified { border-color: rgb(44 89 102 / 38%); background: var(--success-bg); color: var(--success); }
-.transport-result-card__route { margin: 14px 0 18px; font-family: var(--font-display); font-size: clamp(19px, 2.6vw, 26px); line-height: 1.35; overflow-wrap: anywhere; }
+.transport-result-card__route { margin: 14px 0 18px; font-family: var(--font-display); font-size: 26px; line-height: 1.35; overflow-wrap: anywhere; }
 .transport-result-card__route span { padding: 0 5px; color: var(--rust); }
 .transport-schedule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .transport-schedule-grid > div { display: grid; align-content: start; gap: 6px; min-width: 0; }
@@ -87,7 +87,7 @@
 }
 
 .transport-guide { display: grid; gap: 13px; padding: 18px 20px; border: 1px solid var(--line); border-left: 4px solid var(--mustard); background: var(--paper-light); }
-.transport-guide__head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; letter-spacing: -.02em; }
+.transport-guide__head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; letter-spacing: 0; }
 .transport-guide__head > p { margin: 6px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.6; }
 .transport-guide ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0; padding: 0; list-style: none; }
 .transport-guide li { display: grid; align-content: start; gap: 5px; padding: 4px 16px; border-left: 1px solid var(--line-soft); }

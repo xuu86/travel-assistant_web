@@ -14,8 +14,10 @@
 - `foundation`、`weather` 和 `budget` 的本地流程验收记录已完成，见 [foundation](docs/acceptance/foundation.md)、[weather](docs/acceptance/weather.md)、[budget](docs/acceptance/budget.md)。Open-Meteo adapter 已实现，并有五城历史连通性检查；不代表持续覆盖或获准公网/商业使用，见 [天气 Provider 验收](docs/acceptance/weather-provider.md)。
 - `transport` 的 fake 流程、Amadeus 航班 adapter 和 FlyAI 官方 CLI 铁路 provider 已实现，详见 [SPEC](docs/SPEC-transport.md)、[实施计划](tasks/transport/plan.md)、[任务清单](tasks/transport/todo.md)、[验收记录](docs/acceptance/transport.md)。铁路完成过一次本地真实 API 查询，但价格/余票未知；Amadeus 真实航班数据尚未验收，市内路线 provider 尚未接入。
 - `assistant` 模块已有离线/fake 流程和 OpenAI-compatible provider adapter：[SPEC](docs/SPEC-assistant.md)、[实施记录](docs/acceptance/assistant.md)。真实模型供应商、资格、价格、隐私条款、额度和质量仍待 E-007 核验；不配置密钥时接口返回 `unconfigured`。
-- `itinerary` 当前是前端内存中的手工草稿，不是服务端行程 API；刷新后不保留，也没有账号、owner scope 或跨设备同步。
-- 酒店、活动、景点与 maps 已接入高德 Web 服务：后端 POI/静态地图代理、前端搜索工作区、选点联动、分页、异常状态和地图缩放均已实现；后端 407 项测试、前端 98 项单测及上海真实连通性快照通过，详见 [高德规格与验收记录](docs/SPEC-amap-integration.md) 与 [高德验收记录](docs/acceptance/amap.md)。地点 POI 不含价格、库存、活动档期或开放预约事实。导入、推荐、账号、local-storage 和 exports 尚未实现。逐模块状态见 [Web Capability Map](Web-Capability-Map.md)。
+- `auth` 与 `local-storage` 已实现游客/测试账号会话、退出保留和 IndexedDB owner 分区；行程、预算、清单、笔记、地点与查询条件可在同一浏览器恢复。数据只保存在本机浏览器，不提供云端备份、跨浏览器同步或跨设备同步；真实测试账号尚未配置，进程内会话不适用于多 worker 生产部署，详见[登录与本地操作保留验收](docs/acceptance/auth-local-storage.md)。
+- 交通页面只查询航班／铁路班次，不显示票价、余票、购票入口或市内路线；后端报价／路线契约仍保留。车票订单导入支持 DOCX、PDF、JPG/JPEG、PNG 的本机文本解析/OCR，必须由用户核对后才加入预算，不自动去重或验证订单真伪，详见[交通验收](docs/acceptance/transport.md)与[预算验收](docs/acceptance/budget.md)。
+- 酒店、活动、景点与 maps 已接入高德 Web 服务：后端 POI/静态地图代理、前端搜索工作区、选点联动、分页、异常状态和地图缩放均已实现；后端 407 项测试、前端 98 项单测及上海真实连通性快照通过，详见 [高德规格与验收记录](docs/SPEC-amap-integration.md) 与 [高德验收记录](docs/acceptance/amap.md)。地点 POI 不含价格、库存、活动档期或开放预约事实。推荐与 exports 尚未实现。逐模块状态见 [Web Capability Map](Web-Capability-Map.md)。
+- 亮点方案 L1“信息护照”已接入天气、班次、地点、预算和行程；L2“未知项账本”与 L6“行程体检报告”仍未实现，按各自数据证据边界继续规划。
 - 以上只表示对应模块的契约、交互或测试流程状态；不代表真实数据能力已验证，也不代表 Web 首版整体完成。其他首版模块仍须各自过规格、实现和验收门禁。
 - 当前可本机演示，尚无公网生产部署方案。公网发布门槛和 API 申请/配置清单见[生产上线准备清单](docs/production-launch-readiness.md)。
 - 项目已配置的外部 API、调用对象、官方网址与内部接口列表见 [API 来源清单](docs/api-inventory.md)。

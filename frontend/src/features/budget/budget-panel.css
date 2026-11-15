@@ -1,13 +1,13 @@
 .budget-page { max-width: 1080px; margin: 0 auto; }
 .budget-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 8px 0 28px; border-bottom: 1px solid var(--line-strong); }
-.budget-heading h1 { margin: 0; font-family: var(--font-display); font-size: clamp(34px, 4vw, 46px); line-height: 1.12; letter-spacing: -.04em; }
+.budget-heading h1 { margin: 0; font-family: var(--font-display); font-size: 46px; line-height: 1.12; letter-spacing: 0; }
 .budget-heading p:last-child { margin: 9px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.7; }
 .budget-eyebrow, .budget-step { margin: 0 0 10px; color: var(--rust); font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .1em; }
 .budget-session-note { flex: 0 0 auto; padding: 8px 11px; border: 1px solid var(--navy); border-left: 2px solid var(--navy); background: var(--orange-pale); color: var(--ink-soft); font-size: 12px; }
 .budget-form { padding-top: 8px; }
 .budget-block { padding: 28px 0 30px; border-bottom: 1px solid var(--line); }
 .budget-block__heading, .budget-result__heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
-.budget-block__heading h2, .budget-result__heading h2 { margin: 0; font-family: var(--font-display); font-size: 24px; line-height: 1.3; letter-spacing: -.025em; }
+.budget-block__heading h2, .budget-result__heading h2 { margin: 0; font-family: var(--font-display); font-size: 24px; line-height: 1.3; letter-spacing: 0; }
 .budget-block__heading > p { margin: 0 0 2px; color: var(--ink-faint); font-size: 12px; }
 .budget-step { margin-bottom: 7px; color: var(--navy); }
 .budget-top-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; max-width: 720px; }
@@ -30,7 +30,7 @@
 .budget-input-wrap:focus-within { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(35, 173, 229, 0.15); }
 .budget-input-wrap input { min-height: 44px; border: 0; outline: 0; box-shadow: none; }
 .budget-input-wrap input:focus-visible { outline: 0; }
-.text-button { min-height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--white); color: var(--navy); font-weight: 700; cursor: pointer; }
+.text-button { min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--white); color: var(--navy); font-weight: 700; cursor: pointer; }
 .text-button:hover { border-color: var(--navy); background: var(--teal-pale); }
 .text-button:disabled { cursor: wait; opacity: .65; }
 .budget-cost-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -43,7 +43,7 @@
 .budget-import-dialog::backdrop { background: rgb(20 31 37 / 56%); }
 .budget-import-dialog__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .budget-import-dialog__heading h2 { margin: 0; font-family: var(--font-display); font-size: 24px; line-height: 1.3; }
-.budget-import-close { width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid var(--line-strong); background: var(--white); color: var(--ink); font-size: 25px; line-height: 1; cursor: pointer; }
+.budget-import-close { width: 44px; height: 44px; flex: 0 0 auto; border: 1px solid var(--line-strong); background: var(--white); color: var(--ink); font-size: 25px; line-height: 1; cursor: pointer; }
 .budget-import-filename { margin: 16px 0; overflow-wrap: anywhere; color: var(--ink-faint); font-size: 12px; }
 .budget-import-options { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
 .budget-import-options legend { margin-bottom: 9px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
@@ -60,7 +60,7 @@
 .budget-import-payment input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--navy); }
 .budget-import-hint { margin: 14px 0 0; color: var(--ink-faint); font-size: 12px; line-height: 1.6; }
 .budget-import-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
-.budget-import-actions .budget-submit { min-width: 138px; min-height: 42px; box-shadow: 3px 3px 0 var(--mustard); }
+.budget-import-actions .budget-submit { min-width: 138px; min-height: 44px; box-shadow: 3px 3px 0 var(--mustard); }
 .budget-inline-note, .budget-source-note { margin: -5px 0 16px; color: var(--ink-faint); font-size: 12px; line-height: 1.65; }
 .cost-list { display: grid; gap: 10px; }
 .cost-row {
@@ -81,7 +81,7 @@
 .cost-evidence { grid-column: 1 / -1; }
 .cost-user-quote { display: flex; align-items: center; align-self: end; gap: 8px; min-height: 46px; color: var(--ink-soft); font-size: 12px; line-height: 1.45; cursor: pointer; }
 .cost-user-quote input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--navy); }
-.remove-cost { min-height: 42px; padding: 0 10px; border: 1px solid rgba(35, 173, 229, 0.3); border-radius: var(--radius); background: var(--white); color: var(--navy); cursor: pointer; }
+.remove-cost { min-height: 44px; padding: 0 10px; border: 1px solid rgba(35, 173, 229, 0.3); border-radius: var(--radius); background: var(--white); color: var(--navy); cursor: pointer; }
 .remove-cost:hover { background: var(--teal-pale); border-color: var(--navy); }
 .cost-empty { margin: 0; padding: 18px; border-left: 4px solid var(--line-strong); color: var(--ink-faint); background: rgb(245 248 250 / 70%); font-size: 13px; }
 .budget-source-warning, .budget-error, .budget-overrun, .budget-reminder, .budget-review-note { margin: 14px 0 0; padding: 12px 14px; border-left: 2px solid; border-radius: var(--radius); font-size: 13px; line-height: 1.6; }
@@ -157,7 +157,7 @@
 }
 
 .budget-guide { display: grid; gap: 14px; margin: 2px 0 8px; padding: 18px 20px; border: 1px solid var(--line); border-left: 4px solid var(--mustard); background: var(--paper-light); }
-.budget-guide__head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; letter-spacing: -.02em; }
+.budget-guide__head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; letter-spacing: 0; }
 .budget-guide ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0; padding: 0; list-style: none; }
 .budget-guide li { display: grid; align-content: start; gap: 5px; padding: 4px 16px; border-left: 1px solid var(--line-soft); }
 .budget-guide li:first-child { padding-left: 0; border-left: 0; }

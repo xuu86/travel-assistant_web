@@ -64,6 +64,14 @@ function activateDestination(cityId = "shanghai") {
 }
 
 describe("App weather query", () => {
+  it("describes local workspace persistence accurately", () => {
+    render(<App />);
+
+    expect(screen.getByText(/草稿保存在此浏览器的当前用户分区/)).toBeVisible();
+    expect(screen.getByText(/进度保存在此浏览器的当前用户分区/)).toBeVisible();
+    expect(screen.getByText(/笔记保存在此浏览器的当前用户分区/)).toBeVisible();
+  });
+
   it("requires an explicit registered destination before mounting tools or requesting data", () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
@@ -87,6 +95,12 @@ describe("App weather query", () => {
     ]);
     expect(screen.getByRole("combobox", { name: "出发地点" })).toHaveValue("current");
     expect(screen.getByRole("option", { name: "自定义地点" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "上海 · 上海市" })).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(screen.getByRole("button", { name: "苏州 · 江苏省" }));
+    expect(screen.getByRole("button", { name: "苏州 · 江苏省" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("combobox", { name: "目的城市" })).toHaveValue("suzhou");
+    fireEvent.click(screen.getByRole("button", { name: /天气/ }));
+    expect(screen.getByRole("region", { name: "天气 模块详情" })).toBeVisible();
   });
 
   it("uses browser coordinates as the default origin when location permission is granted", () => {

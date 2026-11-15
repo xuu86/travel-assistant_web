@@ -1,6 +1,6 @@
 .places-panel, .maps-panel { margin-top: 36px; min-width: 0; }
 .places-heading, .map-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; border-bottom: 2px solid var(--navy); padding-bottom: 22px; }
-.places-heading h1, .map-heading h1 { margin: 10px 0 0; font: 500 clamp(28px, 3.8vw, 46px)/1.25 var(--font-display); }
+.places-heading h1, .map-heading h1 { margin: 10px 0 0; font: 500 46px/1.25 var(--font-display); }
 .places-city { flex-shrink: 0; font-weight: 700; color: var(--navy); }
 .places-city span { color: var(--ink-soft); font-size: 12px; font-weight: 400; }
 .places-intro { max-width: 780px; color: var(--ink-soft); font-size: 15px; line-height: 1.8; margin: 20px 0 28px; }

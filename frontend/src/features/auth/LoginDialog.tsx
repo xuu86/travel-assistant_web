@@ -79,7 +79,7 @@ export function LoginDialog() {
         </div>
         <label className="field">
           <span className="field__label">用户名</span>
-          <input name="username" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required maxLength={32} disabled={busy} />
+          <input name="username" autoComplete="username" spellCheck={false} value={username} onChange={(event) => setUsername(event.target.value)} required maxLength={32} disabled={busy} />
         </label>
         <label className="field">
           <span className="field__label">密码</span>

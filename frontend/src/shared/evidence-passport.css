@@ -1,0 +1,52 @@
+.evidence-passport {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.evidence-passport summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 4px 2px;
+  color: var(--navy);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.evidence-passport summary::marker { color: var(--rust); }
+.evidence-passport summary:hover { color: var(--rust-dark); }
+.evidence-passport summary:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.evidence-passport__dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: currentColor; }
+.evidence-passport--verified .evidence-passport__dot { color: var(--success); }
+.evidence-passport--estimate .evidence-passport__dot { color: #956500; }
+.evidence-passport--unverified .evidence-passport__dot,
+.evidence-passport--unknown .evidence-passport__dot,
+.evidence-passport--demo .evidence-passport__dot { color: var(--rust); }
+.evidence-passport--user_provided .evidence-passport__dot { color: var(--navy); }
+
+.evidence-passport__details {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(360px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid var(--line-strong);
+  border-top: 3px solid var(--navy);
+  background: var(--paper-light);
+  box-shadow: var(--shadow-card);
+}
+
+.evidence-passport__details dl { display: grid; gap: 8px; margin: 0; }
+.evidence-passport__details dl > div { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 10px; }
+.evidence-passport__details dt { color: var(--ink-faint); }
+.evidence-passport__details dd { min-width: 0; margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.evidence-passport__details a { display: inline-flex; align-items: center; min-height: 36px; margin-top: 8px; color: var(--rust-dark); font-weight: 700; }
+
+@media (max-width: 560px) {
+  .evidence-passport__details { position: static; width: min(100%, 360px); margin-top: 4px; }
+}

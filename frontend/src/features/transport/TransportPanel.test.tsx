@@ -121,8 +121,9 @@ describe("TransportPanel", () => {
     expect(await screen.findByText("FAKE-01")).toBeVisible();
     expect(screen.queryByText(/金额待核实|票价|费用项目|¥/)).not.toBeInTheDocument();
     expect(screen.getByText("航班 · 2026-11-10")).toBeVisible();
-    expect(screen.getByText(/合成交通来源/)).toBeVisible();
-    expect(screen.getByText("测试 fixture")).toBeVisible();
+    fireEvent.click(screen.getByText("测试数据 · 信息护照"));
+    expect(screen.getByText("合成交通来源")).toBeVisible();
+    expect(screen.getByText("测试数据 · 信息护照")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/transport/fares/search", expect.objectContaining({
       method: "POST",
     }));

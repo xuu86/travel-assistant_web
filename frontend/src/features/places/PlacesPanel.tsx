@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { EvidencePassport } from "../../shared/EvidencePassport";
 import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import { searchPlaces, type Place, type PlaceCategory, type PlaceResult } from "./api";
 import "./places.css";
@@ -94,18 +95,22 @@ export function PlacesPanel({ category, cityId, cityName, onSelect }: {
           <div className="places-result-heading"><h2>{resultTitle}</h2><span>第 {result.page} 页 · {result.items.length} 个地点</span></div>
           <p role="status">{result.message}</p>
           {result.items.length > 0 && <ol className="places-list">
-            {result.items.map((place, index) => <li key={place.id}>
-              <span className="place-index" aria-hidden="true">{String((result.page - 1) * 10 + index + 1).padStart(2, "0")}</span>
-              <div className="place-details"><h3>{place.name}</h3><p>{place.address ?? "地址待补充"}</p>
-                {place.category && <p className="place-category">{place.category.split(";").join(" / ")}</p>}
-                {place.telephone && <p>电话：{place.telephone}</p>}
-                <span className="place-unknown">{content.missing}</span>
-              </div>
-              <button className="workspace-change" type="button" disabled={!place.location}
-                aria-label={`在地图查看${place.name}`} onClick={() => onSelect(place)}>
-                {place.location ? "在地图查看 ↗" : "位置待核实"}
-              </button>
-            </li>)}
+            {result.items.map((place, index) => {
+              const source = result.sources.find((candidate) => candidate.source_id === place.source_id);
+              return <li key={place.id}>
+                <span className="place-index" aria-hidden="true">{String((result.page - 1) * 10 + index + 1).padStart(2, "0")}</span>
+                <div className="place-details"><h3>{place.name}</h3><p>{place.address ?? "地址待补充"}</p>
+                  {place.category && <p className="place-category">{place.category.split(";").join(" / ")}</p>}
+                  {place.telephone && <p>电话：{place.telephone}</p>}
+                  <span className="place-unknown">{content.missing}</span>
+                  {source && <EvidencePassport source={source} subject={`地点 ${place.name}`} />}
+                </div>
+                <button className="workspace-change" type="button" disabled={!place.location}
+                  aria-label={`在地图查看${place.name}`} onClick={() => onSelect(place)}>
+                  {place.location ? "在地图查看 ↗" : "位置待核实"}
+                </button>
+              </li>;
+            })}
           </ol>}
           {(result.page > 1 || result.has_more) && <nav className="places-pagination" aria-label={`${content.label}结果分页`}>
             <button className="workspace-change" type="button" disabled={loading || result.page <= 1}
@@ -114,7 +119,6 @@ export function PlacesPanel({ category, cityId, cityName, onSelect }: {
             <button className="workspace-change" type="button" disabled={loading || !result.has_more}
               onClick={() => void search(result.page + 1, submittedKeywords)}>下一页</button>
           </nav>}
-          {result.sources.length > 0 && <p className="places-source">来源：{result.sources.map((s) => s.display_name).join("、")} · 查询于 {new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", dateStyle: "short", timeStyle: "short" }).format(new Date(result.queried_at))}（北京时间）</p>}
         </>}
       </div>
     </section>

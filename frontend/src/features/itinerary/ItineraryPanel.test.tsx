@@ -12,6 +12,9 @@ describe("ItineraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "添加到行程" }));
     expect(screen.getByRole("heading", { name: "外滩散步" })).toBeVisible();
     expect(screen.getByText("傍晚")).toBeVisible();
+    fireEvent.click(screen.getByText("用户提供 · 信息护照"));
+    expect(screen.getByText("用户手动录入")).toBeVisible();
+    expect(screen.getByText("录入时间").parentElement).toHaveTextContent("2026年");
     fireEvent.click(screen.getByRole("button", { name: "锁定" }));
     expect(screen.getByRole("button", { name: "删除" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "解锁" }));

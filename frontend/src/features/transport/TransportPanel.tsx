@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import type { components } from "../../shared/api-contracts";
+import { EvidencePassport } from "../../shared/EvidencePassport";
 import { AIRPORTS, airportDistanceKm, nearestAirport, placeCoordinates } from "./airports";
 import {
   fetchTransportFares,
@@ -209,11 +210,9 @@ function ScheduleCards({ data }: { data: FareResponse }) {
             </div>
           )}
           {data.sources?.map((source) => source.source_id === offer.source_id && (
-            <p className="transport-source" key={source.source_id}>
-              来源：{source.display_name} · 取数时间：{formatBeijingDateTime(source.retrieved_at)}
-              {source.attribution ? ` · ${source.attribution}` : ""}
-              {source.url && <> · <a href={source.url} target="_blank" rel="noreferrer">查看来源</a></>}
-            </p>
+            <div className="transport-source" key={source.source_id}>
+              <EvidencePassport source={source} coverage={data.coverage} subject={`班次 ${offer.service_number ?? "查询结果"}`} />
+            </div>
           ))}
         </article>
       ))}

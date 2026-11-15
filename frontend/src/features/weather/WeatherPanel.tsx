@@ -1,4 +1,5 @@
 import type { components } from "../../shared/api-contracts";
+import { EvidencePassport } from "../../shared/EvidencePassport";
 import { WeatherApiError } from "./api";
 import "./weather-panel.css";
 
@@ -267,6 +268,11 @@ export function WeatherPanel({ cityName, state }: WeatherPanelProps) {
                       <div><dt>降水量</dt><dd>{metric(day.precipitation_sum_mm, " mm")}</dd></div>
                       <div><dt>最大风速</dt><dd>{metric(day.wind_speed_10m_max_kmh, " km/h")}</dd></div>
                     </dl>
+                    {source && <EvidencePassport source={source} coverage={{
+                      requested: { start: day.date, end: day.date },
+                      covered: (data.coverage?.covered ?? []).filter((range) => range.start <= day.date && range.end >= day.date),
+                      missing: (data.coverage?.missing ?? []).filter((range) => range.start <= day.date && range.end >= day.date),
+                    }} subject={`${formatDate(day.date)}天气数据`} />}
                   </article>
                 );
               })}
@@ -280,6 +286,7 @@ export function WeatherPanel({ cityName, state }: WeatherPanelProps) {
           {items.length > 0 && <WeatherTips day={items[0]} />}
           {items.length === 0 && <WeatherTips day={SAMPLE_SUNNY_DAY} sample />}
           {source && (
+            <>
             <p className="weather-panel__source">
               来源：{source.display_name}
               {source.evidence_state === "demo" ? "（测试 fixture）" : ""}
@@ -288,6 +295,7 @@ export function WeatherPanel({ cityName, state }: WeatherPanelProps) {
               {source.attribution ? ` · ${source.attribution}` : ""}
               {source.source_id === "open-meteo.forecast" && <>{" · "}<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0 许可</a></>}
             </p>
+            </>
           )}
         </>
       )}

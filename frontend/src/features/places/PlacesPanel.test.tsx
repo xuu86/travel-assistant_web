@@ -11,7 +11,10 @@ const point = { id: "B001", source_id: "amap.place" as const, name: "测试酒�
 } };
 const result: PlaceResult = {
   state: "live", city_id: "shanghai", category: "hotels", page: 1, has_more: true,
-  items: [point, { id: "B002", source_id: "amap.place", name: "无坐标酒店", location: null }], sources: [],
+  items: [point, { id: "B002", source_id: "amap.place", name: "无坐标酒店", location: null }], sources: [{
+    source_id: "amap.place", display_name: "高德地图", url: "https://amap.com", retrieved_at: "2026-11-04T10:00:00Z",
+    valid_from: null, valid_to: null, attribution: null, evidence_state: "verified",
+  }],
   request_id: "fixture", queried_at: "2026-11-04T10:00:00Z", message: "仅展示地点资料。",
 };
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -24,6 +27,7 @@ it("searches explicitly, pages with submitted keywords, and selects only located
   fireEvent.change(screen.getByLabelText("酒店关键词"), { target: { value: " 浦东 " } });
   fireEvent.click(screen.getByRole("button", { name: /查询酒店/ }));
   await screen.findByRole("heading", { name: point.name });
+  expect(screen.getAllByText("已核实 · 信息护照")).toHaveLength(2);
   expect(search).toHaveBeenCalledWith("hotels", { city_id: "shanghai", keywords: "浦东", page: 1 }, expect.any(AbortSignal));
   expect(screen.getByRole("button", { name: "在地图查看无坐标酒店" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "在地图查看测试酒店" }));

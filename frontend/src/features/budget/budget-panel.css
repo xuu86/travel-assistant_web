@@ -11,6 +11,7 @@
 .budget-block__heading > p { margin: 0 0 2px; color: var(--ink-faint); font-size: 12px; }
 .budget-step { margin-bottom: 7px; color: var(--navy); }
 .budget-top-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; max-width: 720px; }
+.budget-field-evidence { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 8px; }
 .budget-field { display: grid; min-width: 0; gap: 8px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
 .budget-field small { margin-left: 6px; color: var(--ink-faint); font-size: 11px; font-weight: 400; }
 .budget-field input, .budget-field select {
@@ -77,6 +78,7 @@
   background: var(--white);
 }
 .cost-row legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.cost-evidence { grid-column: 1 / -1; }
 .cost-user-quote { display: flex; align-items: center; align-self: end; gap: 8px; min-height: 46px; color: var(--ink-soft); font-size: 12px; line-height: 1.45; cursor: pointer; }
 .cost-user-quote input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--navy); }
 .remove-cost { min-height: 42px; padding: 0 10px; border: 1px solid rgba(35, 173, 229, 0.3); border-radius: var(--radius); background: var(--white); color: var(--navy); cursor: pointer; }

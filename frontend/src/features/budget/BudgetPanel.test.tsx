@@ -93,6 +93,8 @@ describe("BudgetPanel", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("已将 ¥349.50 添加为往返交通已支付费用");
     expect(screen.getByRole("textbox", { name: "费用项 2 已支付（元）" })).toHaveValue("349.50");
+    fireEvent.click(screen.getByLabelText("查看费用项 2的信息护照"));
+    expect(screen.getByText("用户核对的车票订单金额")).toBeVisible();
   });
 
   it("defaults unverified ticket prices to unpaid and lets the user confirm that state", async () => {

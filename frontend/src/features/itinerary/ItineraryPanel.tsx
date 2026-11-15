@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { createDraftId } from "../../shared/draft-id";
+import { EvidencePassport } from "../../shared/EvidencePassport";
 import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import "./itinerary-panel.css";
 
-type ItineraryItem = { id: string; date: string; time: string; title: string; note: string; locked: boolean; completed: boolean };
+type ItineraryEvidence = { displayName: string; evidenceState: "user_provided" | "unknown"; recordedAt?: string };
+type ItineraryItem = { id: string; date: string; time: string; title: string; note: string; locked: boolean; completed: boolean; evidence?: ItineraryEvidence };
 
 /** 小机器人随机添加的一项安排 */
 export type InjectedItinerary = { token: number; title: string; time: string; note: string };
 
 function newItem(date: string): ItineraryItem {
-  return { id: createDraftId(), date, time: "09:00", title: "", note: "", locked: false, completed: false };
+  return {
+    id: createDraftId(), date, time: "09:00", title: "", note: "", locked: false, completed: false,
+    evidence: { displayName: "用户手动录入", evidenceState: "user_provided", recordedAt: new Date().toISOString() },
+  };
 }
 
 export function ItineraryPanel({ destinationName, startDate, endDate, injectedItem }: { destinationName: string; startDate: string; endDate: string; injectedItem?: InjectedItinerary | null }) {
@@ -40,6 +45,7 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
         note: injectedItem.note,
         locked: false,
         completed: false,
+        evidence: { displayName: "助手快捷填入，内容需核对", evidenceState: "unknown" as const, recordedAt: new Date().toISOString() },
       }].sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)));
     }, 0);
     const scrollTimer = window.setTimeout(() => {
@@ -52,7 +58,7 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
       window.clearTimeout(applyTimer);
       window.clearTimeout(scrollTimer);
     };
-  }, [injectedItem, dates, startDate]);
+  }, [injectedItem, dates, startDate, setItems]);
   const draftDate = !editingId && dates.length > 0 && !dates.includes(draft.date) ? dates[0] : draft.date;
 
   function addItem(event: FormEvent<HTMLFormElement>) {
@@ -71,6 +77,7 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
       completed: currentItem?.completed ?? false,
       title: draft.title.trim(),
       note: draft.note.trim(),
+      evidence: { displayName: editingId ? "用户手动编辑" : "用户手动录入", evidenceState: "user_provided" as const, recordedAt: new Date().toISOString() },
     };
     setItems((current) => (editingId
       ? current.map((item) => item.id === editingId ? updated : item)
@@ -126,7 +133,7 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
     <section className="itinerary-block itinerary-list-block" aria-labelledby="itinerary-list-title">
       <div className="itinerary-block__heading"><div><p className="itinerary-step">02 / AGENDA</p><h2 id="itinerary-list-title">我的安排</h2></div><p>{items.length ? `${items.length} 项安排` : "还没有安排"}</p></div>
       {outOfRangeCount > 0 && <p className="itinerary-range-warning" role="status">旅行日期已调整；有 {outOfRangeCount} 项安排在日期范围外。安排已保留，请编辑日期或调整旅行日期。</p>}
-      {items.length === 0 ? <p className="itinerary-empty">先添加第一项安排，行程会按日期和时间排列。</p> : <div className="itinerary-days">{groupedItems.map(({ date, items: dayItems }) => <section className="itinerary-day" key={date} aria-labelledby={`itinerary-day-${date}`}><h3 id={`itinerary-day-${date}`} className="itinerary-day__heading">{date}<span>{dayItems.length} 项</span></h3><div className="itinerary-list">{dayItems.map((item) => <article className={`itinerary-item${item.locked ? " is-locked" : ""}${item.completed ? " is-completed" : ""}`} key={item.id}><div className="itinerary-item__time"><strong>{item.time}</strong></div><div className="itinerary-item__body"><h4>{item.title}</h4>{item.note && <p>{item.note}</p>}{item.locked && <span className="itinerary-locked">已锁定</span>}{item.completed && <span className="itinerary-completed-label">已完成</span>}{!dates.includes(item.date) && <span className="itinerary-range-label">超出旅行日期</span>}</div><div className="itinerary-item__actions"><button type="button" onClick={() => toggleCompleted(item.id)}>{item.completed ? "撤销完成" : "已完成"}</button><button type="button" onClick={() => editItem(item)} disabled={item.locked} aria-label={`编辑 ${item.title}`}>编辑</button><button type="button" onClick={() => toggleLock(item.id)}>{item.locked ? "解锁" : "锁定"}</button><button type="button" onClick={() => removeItem(item.id)} disabled={item.locked}>删除</button></div></article>)}</div></section>)}</div>}
+      {items.length === 0 ? <p className="itinerary-empty">先添加第一项安排，行程会按日期和时间排列。</p> : <div className="itinerary-days">{groupedItems.map(({ date, items: dayItems }) => <section className="itinerary-day" key={date} aria-labelledby={`itinerary-day-${date}`}><h3 id={`itinerary-day-${date}`} className="itinerary-day__heading">{date}<span>{dayItems.length} 项</span></h3><div className="itinerary-list">{dayItems.map((item) => <article className={`itinerary-item${item.locked ? " is-locked" : ""}${item.completed ? " is-completed" : ""}`} key={item.id}><div className="itinerary-item__time"><strong>{item.time}</strong></div><div className="itinerary-item__body"><h4>{item.title}</h4>{item.note && <p>{item.note}</p>}{item.locked && <span className="itinerary-locked">已锁定</span>}{item.completed && <span className="itinerary-completed-label">已完成</span>}{!dates.includes(item.date) && <span className="itinerary-range-label">超出旅行日期</span>}<EvidencePassport source={{ display_name: item.evidence?.displayName ?? "用户手动录入（旧数据未记录来源时间）", retrieved_at: item.evidence?.recordedAt ?? null, evidence_state: item.evidence?.evidenceState ?? "user_provided" }} subject={`行程安排：${item.title}`} /></div><div className="itinerary-item__actions"><button type="button" onClick={() => toggleCompleted(item.id)}>{item.completed ? "撤销完成" : "已完成"}</button><button type="button" onClick={() => editItem(item)} disabled={item.locked} aria-label={`编辑 ${item.title}`}>编辑</button><button type="button" onClick={() => toggleLock(item.id)}>{item.locked ? "解锁" : "锁定"}</button><button type="button" onClick={() => removeItem(item.id)} disabled={item.locked}>删除</button></div></article>)}</div></section>)}</div>}
       <p className="itinerary-source-note">行程内容来自你的手动输入；本模块不自动生成景点推荐、不连接订票或地图服务。</p>
     </section>
   </section>;

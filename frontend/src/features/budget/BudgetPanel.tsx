@@ -5,6 +5,7 @@ import { calculateBudget, type BudgetResponse } from "./api";
 import { COST_CATEGORIES, type CostCategory } from "./categories";
 import { formatFen, parseYuanToFen } from "./money";
 import { extractOrderPrices, type PriceCandidate } from "./order-import";
+import { EvidencePassport } from "../../shared/EvidencePassport";
 import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import "./budget-panel.css";
 
@@ -14,13 +15,15 @@ type CostDraft = {
   paid: string;
   unpaid: string;
   userQuote: boolean;
+  evidenceSource?: string;
+  evidenceAt?: string;
 };
 
 /** 小机器人随机添加的一笔费用 */
 export type InjectedCost = { token: number; category: CostCategory };
 
-function newCost(): CostDraft {
-  return { id: createDraftId(), category: "往返交通", paid: "", unpaid: "", userQuote: false };
+function newCost(evidenceSource = "用户手动录入"): CostDraft {
+  return { id: createDraftId(), category: "往返交通", paid: "", unpaid: "", userQuote: false, evidenceSource, evidenceAt: new Date().toISOString() };
 }
 
 function moneyLabel(value: number | null): string {
@@ -33,7 +36,9 @@ function isExplicitlyPaid(candidate: PriceCandidate): boolean {
 
 export function BudgetPanel({ destinationName, injectedCost }: { destinationName: string; injectedCost?: InjectedCost | null }) {
   const [total, setTotal] = usePersistentState("budget.total", "");
+  const [totalEvidenceAt, setTotalEvidenceAt] = usePersistentState("budget.total-evidence-at", "");
   const [reserve, setReserve] = usePersistentState("budget.reserve", "");
+  const [reserveEvidenceAt, setReserveEvidenceAt] = usePersistentState("budget.reserve-evidence-at", "");
   const [costs, setCosts] = usePersistentState<CostDraft[]>("budget.costs", () => [newCost()]);
   const [summary, setSummary] = useState<BudgetResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +103,12 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
 
   function updateCost(id: string, patch: Partial<CostDraft>) {
     invalidateCalculation();
-    setCosts((current) => current.map((cost) => cost.id === id ? { ...cost, ...patch } : cost));
+    setCosts((current) => current.map((cost) => cost.id === id ? {
+      ...cost,
+      ...patch,
+      evidenceSource: "用户手动录入或调整",
+      evidenceAt: new Date().toISOString(),
+    } : cost));
   }
 
   function addCost() {
@@ -138,7 +148,7 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
       parseYuanToFen(candidate.amount);
       invalidateCalculation();
       setCosts((current) => [...current, {
-        ...newCost(),
+        ...newCost("用户核对的车票订单金额"),
         category: "往返交通",
         paid: importPaymentState === "paid" ? candidate.amount : "",
         unpaid: importPaymentState === "unpaid" ? candidate.amount : "",
@@ -238,16 +248,20 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
               <span>整趟总预算</span>
               <span className="budget-input-wrap">
                 <span aria-hidden="true">¥</span>
-                <input inputMode="decimal" autoComplete="off" value={total} onChange={(event) => { invalidateCalculation(); setTotal(event.target.value); }} aria-label="整趟总预算（元）" placeholder="例如 6000" />
+                <input inputMode="decimal" autoComplete="off" value={total} onChange={(event) => { invalidateCalculation(); setTotal(event.target.value); setTotalEvidenceAt(new Date().toISOString()); }} aria-label="整趟总预算（元）" placeholder="例如 6000" />
               </span>
             </label>
             <label className="budget-field">
               <span>手动预留金 <small>可不设置</small></span>
               <span className="budget-input-wrap">
                 <span aria-hidden="true">¥</span>
-                <input inputMode="decimal" autoComplete="off" value={reserve} onChange={(event) => { invalidateCalculation(); setReserve(event.target.value); }} aria-label="预留金（元）" placeholder="不预留请留空" />
+                <input inputMode="decimal" autoComplete="off" value={reserve} onChange={(event) => { invalidateCalculation(); setReserve(event.target.value); setReserveEvidenceAt(new Date().toISOString()); }} aria-label="预留金（元）" placeholder="不预留请留空" />
               </span>
             </label>
+          </div>
+          <div className="budget-field-evidence">
+            <EvidencePassport source={{ display_name: "用户输入的整趟预算上限", retrieved_at: totalEvidenceAt || null, evidence_state: "user_provided" }} subject="整趟总预算" />
+            <EvidencePassport source={{ display_name: "用户输入的手动预留金", retrieved_at: reserveEvidenceAt || null, evidence_state: "user_provided" }} subject="手动预留金" />
           </div>
         </section>
 
@@ -301,6 +315,7 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
                   <span>这是我补填的未报价费用</span>
                 </label>
                 <button className="remove-cost" type="button" onClick={() => removeCost(cost.id)} aria-label={`删除费用项 ${index + 1}`} title="删除费用">删除</button>
+                <div className="cost-evidence"><EvidencePassport source={{ display_name: cost.evidenceSource ?? "用户提供的费用明细", retrieved_at: cost.evidenceAt ?? null, evidence_state: "user_provided" }} subject={`费用项 ${index + 1}`} /></div>
               </fieldset>
             ))}
           </div>

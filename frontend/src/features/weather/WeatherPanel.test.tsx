@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import type { components } from "../../shared/api-contracts";
@@ -67,8 +67,10 @@ describe("WeatherPanel", () => {
     expect(screen.getByText("晴")).toBeVisible();
     expect(screen.getByText("天气现象待识别（999）")).toBeVisible();
     expect(screen.getAllByText("暂无").length).toBeGreaterThan(0);
-    expect(screen.getByText(/来源：Weather fixture/)).toBeVisible();
-    expect(screen.getByText(/测试 fixture/)).toBeVisible();
+    expect(screen.getAllByText("测试数据 · 信息护照")).toHaveLength(2);
+    fireEvent.click(screen.getAllByText("测试数据 · 信息护照")[0]);
+    expect(screen.getAllByText("Weather fixture")).toHaveLength(2);
+    expect(screen.getAllByText("Fixture only")).toHaveLength(2);
   });
 
   it("labels WMO codes supported by the backend mapping", () => {
@@ -102,7 +104,8 @@ describe("WeatherPanel", () => {
       },
     }} />);
 
-    expect(screen.getByText(/Weather data by Open-Meteo.com, licensed under CC BY 4.0/)).toBeVisible();
+    fireEvent.click(screen.getAllByText("状态未知 · 信息护照")[0]);
+    expect(screen.getAllByText(/Weather data by Open-Meteo.com, licensed under CC BY 4.0/).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "CC BY 4.0 许可" })).toHaveAttribute(
       "href", "https://creativecommons.org/licenses/by/4.0/",
     );

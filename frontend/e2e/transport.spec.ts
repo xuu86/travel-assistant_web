@@ -121,6 +121,7 @@ test("transport starts without a request and keeps synthetic rail details explic
   await expect(page.getByText("G-TEST-101")).toBeVisible();
   await expect(page.getByText(/G-TEST-202/)).toBeVisible();
   await expect(page.getByText(/换乘地点：测试站 B/)).toBeVisible();
+  await page.locator(".transport-results .evidence-passport summary").first().click();
   await expect(page.getByText(/Transport E2E fixture/)).toBeVisible();
   await expect(page.locator(".transport-results").getByText(/票价|费用项目|余量未知|¥|平台提示/)).toHaveCount(0);
   await expect(page.getByText("席别：二等座")).toBeVisible();

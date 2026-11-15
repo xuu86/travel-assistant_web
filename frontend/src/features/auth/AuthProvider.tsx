@@ -6,6 +6,7 @@ import { getGuestOwnerId } from "../local-storage/repository";
 import { WorkspacePersistenceProvider } from "../local-storage/WorkspacePersistenceProvider";
 import { AuthContext, guestIdentity } from "./auth-context";
 import type { AuthState } from "./auth-context";
+import { allowsCredentialSubmission } from "./credential-security";
 
 function publicMessage(reason: unknown): string {
   return reason instanceof AuthApiError
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (controller.signal.aborted) return;
       setIdentity(session);
       setWorkspaceOwnerId(ownerId ?? `guest-memory-${crypto.randomUUID()}`);
-      setAvailable(online);
+      setAvailable(online && allowsCredentialSubmission(window.location.origin, window.isSecureContext));
       setReady(true);
     })();
     return () => controller.abort();

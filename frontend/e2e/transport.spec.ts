@@ -54,37 +54,6 @@ const railFare = {
   error: null,
 };
 
-function routeResult(mode: "transit" | "walking" | "taxi") {
-  const taxi = mode === "taxi";
-  return {
-    state: "demo",
-    items: [{
-      route_id: `${mode}-e2e-route`,
-      source_id: source[0].source_id,
-      mode,
-      origin_name: "测试地点 A",
-      destination_name: "测试地点 B",
-      distance_m: taxi ? null : 1250,
-      duration_seconds: taxi ? null : 900,
-      duration_basis: taxi ? "unknown" : "typical_estimate",
-      steps: [],
-      geometry_points: null,
-      fare_amount_fen: taxi ? 3500 : null,
-      currency_code: "CNY",
-      fare_basis: taxi ? "meter_estimate" : "unknown",
-      fare_evidence_state: taxi ? "estimate" : "unknown",
-      evidence_state: "demo",
-      missing_fields: ["geometry_points"],
-    }],
-    sources: source,
-    queried_at: "2026-10-28T02:00:00Z",
-    request_id: `${mode}-e2e-request`,
-    message: "合成测试路线，不代表真实导航。",
-    coverage: null,
-    error: null,
-  };
-}
-
 async function enterTransport(page: import("@playwright/test").Page) {
   await page.goto("/");
   await page.getByRole("combobox", { name: "目的城市" }).selectOption("hangzhou");
@@ -124,6 +93,15 @@ test("transport starts without a request and keeps synthetic rail details explic
   expect(fareCalls).toBe(0);
   await expect(page.getByText("交通服务尚未配置", { exact: true })).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "市内路线" })).toHaveCount(0);
+  const primaryFields = [
+    page.getByLabel(/交通方式/),
+    page.getByLabel(/目标出行日期/),
+    page.getByLabel(/成人数量/),
+    page.getByLabel(/^儿童人数/),
+  ];
+  const fieldHeights = await Promise.all(primaryFields.map(async (field) => (await field.boundingBox())?.height));
+  expect(fieldHeights).toEqual([48, 48, 48, 48]);
   if (testInfo.project.name === "mobile-chromium") {
     await page.setViewportSize({ width: 375, height: 812 });
   }
@@ -143,13 +121,10 @@ test("transport starts without a request and keeps synthetic rail details explic
   await expect(page.getByText("G-TEST-101")).toBeVisible();
   await expect(page.getByText(/G-TEST-202/)).toBeVisible();
   await expect(page.getByText(/换乘地点：测试站 B/)).toBeVisible();
-  await expect(page.getByText("票价未返回")).toBeVisible();
-  await expect(page.getByText("余量未知")).toBeVisible();
   await expect(page.getByText(/Transport E2E fixture/)).toBeVisible();
-  await expect(page.getByText("¥0.00")).toHaveCount(0);
+  await expect(page.locator(".transport-results").getByText(/票价|费用项目|余量未知|¥|平台提示/)).toHaveCount(0);
   await expect(page.getByText("席别：二等座")).toBeVisible();
-  await expect(page.getByRole("link", { name: /查看飞猪官方详情/ })).toHaveAttribute("target", "_blank");
-  await expect(page.getByText("平台提示：合成平台提示")).toBeVisible();
+  await expect(page.getByRole("link", { name: /详情|购票/ })).toHaveCount(0);
   expect(fareCalls).toBe(2);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: testInfo.outputPath("railway-results.png"), fullPage: true });
@@ -197,7 +172,7 @@ const flightFare = {
   coverage: null,
   error: null,
 };
-test("flight query defaults to nearest airports and renders the returned fare", async ({ page }) => {
+test("flight query defaults to nearest airports and renders only schedule details", async ({ page }) => {
   let fareRequest: Record<string, unknown> | undefined;
   await page.route("**/api/transport/fares/search", async (route) => {
     fareRequest = route.request().postDataJSON() as Record<string, unknown>;
@@ -214,9 +189,9 @@ test("flight query defaults to nearest airports and renders the returned fare", 
   await page.getByRole("button", { name: "查询班次" }).click();
 
   await expect(page.getByRole("heading", { name: /上海虹桥.*杭州萧山/ })).toBeVisible();
-  const fareResults = page.getByLabel("班次与票价结果");
-  await expect(fareResults).toContainText("MU1234");
-  await expect(fareResults).toContainText("¥355.34");
+  const scheduleResults = page.getByLabel("班次结果");
+  await expect(scheduleResults).toContainText("MU1234");
+  await expect(scheduleResults).not.toContainText(/票价|费用项目|¥355\.34/);
   expect(fareRequest).toMatchObject({
     origin: { display_name: "上海虹桥", place_id: "SHA", coordinate_system: "WGS84" },
     destination: { display_name: "杭州萧山", place_id: "HGH", coordinate_system: "WGS84" },
@@ -226,43 +201,6 @@ test("flight query defaults to nearest airports and renders the returned fare", 
   });
   await expectNoHorizontalOverflow(page);
 });
-test("route modes keep separate success, failure, and taxi estimate states", async ({ page }, testInfo) => {
-  const calls: string[] = [];
-  await page.route("**/api/transport/routes/search", async (route) => {
-    const request = route.request().postDataJSON() as { mode: "transit" | "walking" | "taxi" };
-    calls.push(request.mode);
-    if (request.mode === "walking") {
-      await route.fulfill({
-        status: 503,
-        json: { code: "PROVIDER_UNAVAILABLE", message: "步行服务暂不可用。", retryable: true, request_id: "walking-e2e-error" },
-      });
-      return;
-    }
-    await route.fulfill({ status: 200, json: routeResult(request.mode) });
-  });
-
-  await enterTransport(page);
-  await fillPlaces(page);
-  if (testInfo.project.name === "mobile-chromium") {
-    await page.setViewportSize({ width: 375, height: 812 });
-  }
-  await page.getByRole("button", { name: "市内路线" }).click();
-  await page.getByRole("button", { name: "查询公交 / 地铁路线" }).click();
-  await expect(page.getByRole("region", { name: "公交 / 地铁查询结果" })).toContainText("未提供地图线路，不绘制直线或估算路径。");
-
-  await page.getByRole("button", { name: "查询步行路线" }).click();
-  await expect(page.getByRole("region", { name: "步行查询结果" })).toContainText("步行服务暂不可用。");
-
-  await page.getByRole("button", { name: "查询出租车 / 驾车路线" }).click();
-  const taxi = page.getByRole("region", { name: "出租车 / 驾车查询结果" });
-  await expect(taxi).toContainText("¥35.00");
-  await expect(taxi).toContainText("计价估算");
-  await expect(page.getByRole("region", { name: "公交 / 地铁查询结果" })).toContainText("未提供地图线路，不绘制直线或估算路径。");
-  await expect(page.getByRole("region", { name: "步行查询结果" })).toContainText("步行服务暂不可用。");
-  expect(calls).toEqual(["transit", "walking", "taxi"]);
-  await expectNoHorizontalOverflow(page);
-});
-
 test("changing fare conditions clears prior data and a slow response cannot overwrite the new query", async ({ page }, testInfo) => {
   let firstRequestStarted: (() => void) | undefined;
   const started = new Promise<void>((resolve) => { firstRequestStarted = resolve; });
@@ -296,7 +234,7 @@ test("changing fare conditions clears prior data and a slow response cannot over
   await started;
 
   await page.getByRole("textbox", { name: /目的地/ }).fill("新测试目的地");
-  await expect(page.getByText("提交查询后显示来源与结果；未配置数据源时不会用测试路线或旧结果填补。")).toBeVisible();
+  await expect(page.getByText("提交查询后显示班次与来源；未配置数据源时不会用测试结果或旧结果填补。")).toBeVisible();
   await page.getByRole("button", { name: "查询班次" }).click();
   await expect(page.getByRole("heading", { name: /测试站 A.*新测试目的地/ })).toBeVisible();
 

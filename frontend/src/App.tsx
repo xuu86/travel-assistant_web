@@ -36,7 +36,7 @@ const CITY_OPTIONS: CityOption[] = [
 const MODULE_OPTIONS: { no: string; title: string; desc: string; imageSrc: string }[] = [
   { no: "01", title: "天气", desc: "查询已登记城市的逐日预报，缺失日期会明确标注，不用演示数据补齐。", imageSrc: "/assets/modules/weather.jpg" },
   { no: "02", title: "预算", desc: "用整趟总额与费用明细计算结余；留空表示待核实，不等于 0 元。", imageSrc: "/assets/modules/budget.jpg" },
-  { no: "03", title: "交通", desc: "班次票价与市内路线分开查询，未知金额与未核实路线保持待核实状态。", imageSrc: "/assets/modules/transport.jpg" },
+  { no: "03", title: "交通", desc: "查询航班与铁路班次，页面不展示票价信息。", imageSrc: "/assets/modules/transport.jpg" },
   { no: "04", title: "行程", desc: "按天添加安排并可锁定，草稿只保存在当前页面，不连接订票或地图服务。", imageSrc: "/assets/modules/itinerary.jpg" },
   { no: "05", title: "清单", desc: "按证件、衣物、电子与应急分类勾选，进度只保存在当前页面。", imageSrc: "/assets/modules/checklist.jpg" },
   { no: "06", title: "笔记", desc: "随手记录想法与待确认信息，笔记不会上传，也不会跨刷新保留。", imageSrc: "/assets/modules/notes.jpg" },
@@ -1006,7 +1006,7 @@ export function App() {
             : activeView === "budget"
               ? "预算金额仅在本页计算，不连接报价平台"
               : activeView === "transport"
-                ? "交通服务未配置时不会显示演示班次或路线"
+                ? "交通服务未配置时不会显示演示班次"
                 : ["hotels", "activities", "attractions", "maps"].includes(activeView)
                   ? "地点与地图来自高德；报价、档期及开放情况需另行核实"
                 : activeView === "itinerary"

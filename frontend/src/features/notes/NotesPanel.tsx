@@ -1,5 +1,5 @@
-import { useState } from "react";
 import type { FormEvent } from "react";
+import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import "./notes-panel.css";
 
 type TravelNote = {
@@ -15,9 +15,9 @@ type NotesPanelProps = {
 };
 
 export function NotesPanel({ destinationName, startDate, endDate }: NotesPanelProps) {
-  const [notes, setNotes] = useState<TravelNote[]>([]);
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftBody, setDraftBody] = useState("");
+  const [notes, setNotes] = usePersistentState<TravelNote[]>("notes.items", []);
+  const [draftTitle, setDraftTitle] = usePersistentState("notes.draft-title", "");
+  const [draftBody, setDraftBody] = usePersistentState("notes.draft-body", "");
 
   function addNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,7 +74,7 @@ export function NotesPanel({ destinationName, startDate, endDate }: NotesPanelPr
             <span>{draftBody.length} / 400</span>
             <button type="submit" disabled={!canSave}>保存笔记</button>
           </div>
-          <p className="notes-composer__note">笔记只保存在当前页面，不会上传，也不会跨刷新保留。</p>
+          <p className="notes-composer__note">笔记保存在此浏览器的当前用户分区中，不会上传或跨设备同步。</p>
         </form>
 
         <div className="notes-list">

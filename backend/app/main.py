@@ -68,6 +68,9 @@ def create_app(
     app_settings = settings if settings is not None else get_settings()
     application = FastAPI(title="行旅智能旅游助手 API", version="0.1.0", debug=False)
     application.state.settings = app_settings
+    from app.modules.auth.service import AuthService
+
+    application.state.auth_service = AuthService(app_settings)
     application.state.amap_service = AmapService(app_settings, client=amap_client)
     application.state.transport_service = create_transport_service(
         app_settings,
@@ -84,6 +87,9 @@ def create_app(
     )
     application.add_middleware(RequestContextMiddleware)
     application.include_router(foundation_router)
+    from app.modules.auth.router import router as auth_router
+
+    application.include_router(auth_router)
     application.include_router(assistant_router)
     application.include_router(budget_router)
     application.include_router(weather_router)
@@ -97,6 +103,7 @@ def create_app(
     async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
         public_error = to_public_error(exc, request_id=_request_id(request))
         status_codes = {
+            ErrorCode.UNAUTHORIZED: 401,
             ErrorCode.UNCONFIGURED: 503,
             ErrorCode.NO_COVERAGE: 404,
             ErrorCode.RATE_LIMITED: 429,
@@ -123,6 +130,8 @@ def create_app(
     @application.exception_handler(StarletteHTTPException)
     async def http_error_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         codes = {
+            401: ErrorCode.UNAUTHORIZED,
+            429: ErrorCode.RATE_LIMITED,
             403: ErrorCode.FORBIDDEN,
             404: ErrorCode.NOT_FOUND,
             422: ErrorCode.VALIDATION_ERROR,

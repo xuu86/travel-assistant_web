@@ -11,6 +11,8 @@ import { ChecklistPanel } from "./features/checklist/ChecklistPanel";
 import { NotesPanel } from "./features/notes/NotesPanel";
 import { PlacesPanel } from "./features/places/PlacesPanel";
 import { MapPanel } from "./features/maps/MapPanel";
+import { LoginDialog } from "./features/auth/LoginDialog";
+import { usePersistentState, useWorkspacePersistence } from "./features/local-storage/useWorkspacePersistence";
 import type { Place } from "./features/places/api";
 import type { PlaceRef } from "./features/transport/api";
 import type { components } from "./shared/api-contracts";
@@ -178,9 +180,9 @@ function safeWeatherError(error: unknown): WeatherApiError {
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState<"weather" | "budget" | "transport" | "itinerary" | "checklist" | "notes" | "assistant" | "hotels" | "activities" | "attractions" | "maps">("weather");
-  const [mapPlace, setMapPlace] = useState<Place | null>(null);
-  const [selectedDestinationId, setSelectedDestinationId] = useState("");
+  const [activeView, setActiveView] = usePersistentState<"weather" | "budget" | "transport" | "itinerary" | "checklist" | "notes" | "assistant" | "hotels" | "activities" | "attractions" | "maps">("workspace.active-view", "weather");
+  const [mapPlace, setMapPlace] = usePersistentState<Place | null>("workspace.map-selection", null);
+  const [selectedDestinationId, setSelectedDestinationId] = usePersistentState("workspace.destination-choice", "");
   const [hoveredCityId, setHoveredCityId] = useState<WeatherQuery["city_id"] | null>(null);
   const [robotOpen, setRobotOpen] = useState(false);
   const [robotHint, setRobotHint] = useState<string | null>(null);
@@ -197,14 +199,14 @@ export function App() {
   const robotPopTimer = useRef<number | null>(null);
   const robotRef = useRef<HTMLDivElement>(null);
   const robotDrag = useRef({ active: false, moved: false, startX: 0, startY: 0, originX: 0, originY: 0 });
-  const [selectedOriginId, setSelectedOriginId] = useState("current");
-  const [customOrigin, setCustomOrigin] = useState("");
+  const [selectedOriginId, setSelectedOriginId] = usePersistentState("workspace.origin-choice", "current");
+  const [customOrigin, setCustomOrigin] = usePersistentState("workspace.custom-origin", "");
   const [originPlace, setOriginPlace] = useState<PlaceRef>({
     display_name: "当前位置",
     coordinate_system: "WGS84",
   });
   const [originLocationStatus, setOriginLocationStatus] = useState<"idle" | "loading" | "resolved" | "error">("idle");
-  const [destination, setDestination] = useState<CityOption | null>(null);
+  const [destination, setDestination] = usePersistentState<CityOption | null>("workspace.destination", null);
   const [destinationError, setDestinationError] = useState<string | null>(null);
   const [showDestinationDialog, setShowDestinationDialog] = useState(false);
   const [destinationDialogAction, setDestinationDialogAction] = useState<"change" | "return">("change");
@@ -213,14 +215,15 @@ export function App() {
   const defaultStartDate = useMemo(() => beijingDateInputValue(), []);
   const activeRequest = useRef(0);
   const originRequest = useRef(0);
-  const [startDate, setStartDate] = useState(defaultStartDate);
-  const [endDate, setEndDate] = useState(defaultStartDate);
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number | null>(null);
-  const [tripStartDate, setTripStartDate] = useState(defaultStartDate);
-  const [tripEndDate, setTripEndDate] = useState(defaultStartDate);
+  const [startDate, setStartDate] = usePersistentState("workspace.weather-start-date", defaultStartDate);
+  const [endDate, setEndDate] = usePersistentState("workspace.weather-end-date", defaultStartDate);
+  const [tripStartDate, setTripStartDate] = usePersistentState("workspace.trip-start-date", defaultStartDate);
+  const [tripEndDate, setTripEndDate] = usePersistentState("workspace.trip-end-date", defaultStartDate);
   const [formError, setFormError] = useState<string | null>(null);
   const [weatherState, setWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
   const [todayWeatherState, setTodayWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
+  const persistence = useWorkspacePersistence();
 
   const rangeDays = requestedDays(startDate, endDate);
   // 悬停优先，其次保留已选中城市，让背景图持续显示
@@ -356,7 +359,12 @@ export function App() {
     setDestinationError(null);
   }
 
-  function confirmDestinationAction() {
+  async function confirmDestinationAction() {
+    try {
+      await persistence.clear();
+    } catch {
+      return;
+    }
     if (destinationDialogAction === "return") {
       resetWorkspaceState();
       setSelectedDestinationId("");
@@ -599,6 +607,12 @@ export function App() {
           <span className="header-note__dot" aria-hidden="true" />
           本地开发预览
         </div>
+        <div className={`workspace-save-status is-${persistence.status}`} aria-live="polite">
+          {persistence.status === "saving" ? "正在保存操作…" : persistence.status === "error" ? (
+            <><span title={persistence.error ?? undefined}>本地保存失败</span><button type="button" onClick={persistence.retry}>重试</button></>
+          ) : "操作保存在本机"}
+        </div>
+        <LoginDialog />
       </header>
 
       <main className="app-main" id="app-content">
@@ -860,7 +874,7 @@ export function App() {
                   {destinationError && <p className="form-error" role="alert">{destinationError}</p>}
                   <div className="destination-dialog__actions">
                     <button type="button" className="workspace-change" onClick={() => { setShowDestinationDialog(false); setDestinationError(null); }}>取消</button>
-                    <button type="button" className="primary-button" onClick={confirmDestinationAction}>{destinationDialogAction === "return" ? "确认返回" : "确认更换"}</button>
+                    <button type="button" className="primary-button" onClick={() => void confirmDestinationAction()}>{destinationDialogAction === "return" ? "确认返回" : "确认更换"}</button>
                   </div>
             </dialog>
             <div className="workspace-view" hidden={activeView !== "weather"}>
@@ -996,11 +1010,11 @@ export function App() {
                 : ["hotels", "activities", "attractions", "maps"].includes(activeView)
                   ? "地点与地图来自高德；报价、档期及开放情况需另行核实"
                 : activeView === "itinerary"
-                  ? "行程草稿仅保存在当前页面，不连接订票或地图服务"
+                  ? "行程草稿保存在此浏览器，不连接订票或地图服务"
                   : activeView === "checklist"
-                    ? "行前清单仅保存在当前页面，刷新后不会保留"
+                    ? "行前清单保存在此浏览器的当前用户分区"
                     : activeView === "notes"
-                      ? "旅行笔记仅保存在当前页面，不会上传或跨刷新保留"
+                      ? "旅行笔记保存在此浏览器的当前用户分区，不会上传或跨设备同步"
                       : "AI 回答仅依据本轮明确提供的信息，条件建议不会自动应用"}
         </p>
         <span className="site-footer__meta">LOCAL PREVIEW · {defaultStartDate}</span>

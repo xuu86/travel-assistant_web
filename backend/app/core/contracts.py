@@ -30,6 +30,7 @@ class EvidenceState(StrEnum):
 
 
 class ErrorCode(StrEnum):
+    UNAUTHORIZED = "UNAUTHORIZED"
     UNCONFIGURED = "UNCONFIGURED"
     NO_COVERAGE = "NO_COVERAGE"
     RATE_LIMITED = "RATE_LIMITED"

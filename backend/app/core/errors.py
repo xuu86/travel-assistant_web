@@ -6,6 +6,7 @@ from uuid import UUID
 from app.core.contracts import ErrorCode, PublicError
 
 _PUBLIC_MESSAGES: Final[dict[ErrorCode, str]] = {
+    ErrorCode.UNAUTHORIZED: "用户名或密码不正确。",
     ErrorCode.UNCONFIGURED: "当前能力尚未配置。",
     ErrorCode.NO_COVERAGE: "当前查询范围暂无已确认覆盖。",
     ErrorCode.RATE_LIMITED: "查询暂受额度限制，请稍后重试。",

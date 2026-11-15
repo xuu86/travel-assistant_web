@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { FormEvent } from "react";
+import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import "./checklist-panel.css";
 
 type ChecklistItem = {
@@ -50,9 +51,9 @@ type ChecklistPanelProps = {
 };
 
 export function ChecklistPanel({ destinationName, startDate, endDate }: ChecklistPanelProps) {
-  const [items, setItems] = useState<ChecklistItem[]>(buildTemplate);
-  const [draftLabel, setDraftLabel] = useState("");
-  const [draftCategory, setDraftCategory] = useState<string>(CATEGORIES[0]);
+  const [items, setItems] = usePersistentState<ChecklistItem[]>("checklist.items", buildTemplate);
+  const [draftLabel, setDraftLabel] = usePersistentState("checklist.draft-label", "");
+  const [draftCategory, setDraftCategory] = usePersistentState<string>("checklist.draft-category", CATEGORIES[0]);
 
   const days = countDays(startDate, endDate);
   const checkedCount = useMemo(() => items.filter((item) => item.checked).length, [items]);
@@ -111,7 +112,7 @@ export function ChecklistPanel({ destinationName, startDate, endDate }: Checklis
             <span style={{ width: `${progress}%` }} />
           </div>
           <p className="checklist-progress-card__note">
-            这份清单只保存在当前页面，刷新后不会保留。
+            清单保存在此浏览器的当前用户分区。
           </p>
           <button type="button" className="checklist-reset" onClick={resetChecklist}>
             恢复默认清单

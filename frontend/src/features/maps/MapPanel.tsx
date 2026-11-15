@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchStaticMap, type Place } from "../places/api";
 import { PlacesPanel } from "../places/PlacesPanel";
+import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 
 function MapPreview({ cityId, title, place, zoom }: {
   cityId: string; title: string; place: Place | null; zoom: number;
@@ -30,7 +31,7 @@ function MapPreview({ cityId, title, place, zoom }: {
 export function MapPanel({ cityId, cityName, selectedPlace, onSelect }: {
   cityId: string; cityName: string; selectedPlace: Place | null; onSelect: (place: Place | null) => void;
 }) {
-  const [zoom, setZoom] = useState(13);
+  const [zoom, setZoom] = usePersistentState("maps.zoom", 13);
   const [revision, setRevision] = useState(0);
   const title = selectedPlace?.name ?? cityName;
   return <section className="maps-panel" aria-label="高德地图">

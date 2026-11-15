@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import { searchPlaces, type Place, type PlaceCategory, type PlaceResult } from "./api";
 import "./places.css";
 
@@ -33,7 +34,7 @@ export function PlacesPanel({ category, cityId, cityName, onSelect }: {
   category: PlaceCategory; cityId: string; cityName: string; onSelect: (place: Place) => void;
 }) {
   const content = CONTENT[category];
-  const [keywords, setKeywords] = useState("");
+  const [keywords, setKeywords] = usePersistentState(`${category}.search-keywords`, "");
   const [result, setResult] = useState<PlaceResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

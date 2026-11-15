@@ -4,10 +4,13 @@ const cities = [
   ["shanghai", "上海"], ["suzhou", "苏州"], ["wuxi", "无锡"], ["jiaxing", "嘉兴"], ["hangzhou", "杭州"],
 ] as const;
 
-test("destination setup gates tools, preserves drafts, confirms reset, and resets on reload", async ({ page }) => {
+test("destination setup gates tools, preserves drafts, confirms reset, and restores the workspace on reload", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   const moduleCalls: string[] = [];
   await page.route("**/api/**", async (route) => {
+    if (route.request().url().includes("/api/v1/auth/")) {
+      return route.fulfill({ json: { identity_type: "guest", owner_id: null, display_name: null } });
+    }
     moduleCalls.push(route.request().url());
     await route.fulfill({ status: 503, json: { code: "PROVIDER_UNAVAILABLE", message: "未配置", retryable: true } });
   });
@@ -43,11 +46,11 @@ test("destination setup gates tools, preserves drafts, confirms reset, and reset
   await page.getByRole("button", { name: "确认更换" }).click();
   await expect(page.locator(".workspace-destination")).toHaveText("苏州");
   await expect(page.getByRole("heading", { name: "从一座城市，开始规划一段旅程。" })).toBeVisible();
+  await expect(page.locator(".workspace-save-status")).toHaveText("操作保存在本机");
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "先选好目的地与出发地" })).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "目的城市" })).toHaveValue("");
-  await expect(page.getByRole("navigation", { name: "旅行工具" })).toHaveCount(0);
+  await expect(page.locator(".workspace-destination")).toHaveText("苏州");
+  await expect(page.getByRole("navigation", { name: "旅行工具" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth),
   );

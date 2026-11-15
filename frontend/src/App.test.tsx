@@ -310,7 +310,7 @@ describe("App feature navigation", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("preserves budget drafts across tools and resets them only after confirming a destination change", () => {
+  it("preserves budget drafts across tools and resets them only after confirming a destination change", async () => {
     render(<App />);
     activateDestination("hangzhou");
     fireEvent.click(getToolButton("预算"));
@@ -329,12 +329,12 @@ describe("App feature navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "更换目的地" }));
     fireEvent.change(screen.getByRole("combobox", { name: "新目的城市" }), { target: { value: "suzhou" } });
     fireEvent.click(screen.getByRole("button", { name: "确认更换" }));
-    expect(screen.getByText("苏州", { selector: ".workspace-destination" })).toBeVisible();
+    await waitFor(() => expect(screen.getByText("苏州", { selector: ".workspace-destination" })).toBeVisible());
     fireEvent.click(getToolButton("预算"));
     expect(screen.getByRole("textbox", { name: "整趟总预算（元）" })).toHaveValue("");
   });
 
-  it("returns to city selection after confirming and clears the workspace without a reload", () => {
+  it("returns to city selection after confirming and clears the workspace without a reload", async () => {
     render(<App />);
     activateDestination("hangzhou");
     fireEvent.click(getToolButton("预算"));
@@ -346,7 +346,7 @@ describe("App feature navigation", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "返回选择城市" }));
     fireEvent.click(screen.getByRole("button", { name: "确认返回" }));
-    expect(screen.getByRole("heading", { name: "先选好目的地与出发地" })).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("heading", { name: "先选好目的地与出发地" })).toBeVisible());
     expect(screen.getByRole("combobox", { name: "目的城市" })).toHaveValue("");
     expect(screen.queryByRole("navigation", { name: "旅行工具" })).not.toBeInTheDocument();
   });

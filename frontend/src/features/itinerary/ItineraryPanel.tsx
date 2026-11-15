@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { createDraftId } from "../../shared/draft-id";
+import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import "./itinerary-panel.css";
 
 type ItineraryItem = { id: string; date: string; time: string; title: string; note: string; locked: boolean; completed: boolean };
@@ -13,9 +14,9 @@ function newItem(date: string): ItineraryItem {
 }
 
 export function ItineraryPanel({ destinationName, startDate, endDate, injectedItem }: { destinationName: string; startDate: string; endDate: string; injectedItem?: InjectedItinerary | null }) {
-  const [items, setItems] = useState<ItineraryItem[]>([]);
-  const [draft, setDraft] = useState(() => newItem(startDate));
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [items, setItems] = usePersistentState<ItineraryItem[]>("itinerary.items", []);
+  const [draft, setDraft] = usePersistentState("itinerary.draft", () => newItem(startDate));
+  const [editingId, setEditingId] = usePersistentState<string | null>("itinerary.editing-id", null);
   const [error, setError] = useState<string | null>(null);
   const dates = useMemo(() => {
     const result: string[] = [];
@@ -95,7 +96,7 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
   return <section className="itinerary-page" aria-labelledby="itinerary-title">
     <header className="itinerary-heading">
       <div><p className="itinerary-eyebrow">TRIP ITINERARY / 01</p><h1 id="itinerary-title">旅行行程</h1><p>按天整理安排，锁定后仅允许手动解锁修改。</p></div>
-      <span className="itinerary-session-note">仅本页草稿 · 不会自动保存</span>
+      <span className="itinerary-session-note">仅保存在此浏览器</span>
     </header>
     <p className="itinerary-destination">目的地：<strong>{destinationName}</strong> · 日期：{startDate} 至 {endDate}</p>
     <section className="itinerary-guide" aria-labelledby="itinerary-guide-title">

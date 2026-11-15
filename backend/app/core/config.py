@@ -46,6 +46,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
         validate_assignment=True,
         populate_by_name=True,
+        hide_input_in_errors=True,
     )
 
     env: EnvironmentName = "development"
@@ -58,6 +59,7 @@ class Settings(BaseSettings):
     model_name: str | None = Field(default=None, min_length=1, max_length=120)
     model_api_key: SecretStr | None = None
     model_timeout_seconds: int = Field(default=30, ge=1, le=30)
+    auth_test_accounts: SecretStr | None = None
     weather_provider: WeatherProviderName | None = None
     amap_api_key: SecretStr | None = Field(
         default=None, validation_alias=AliasChoices("APP_AMAP_API_KEY", "AMAP_API_KEY")
@@ -100,6 +102,15 @@ class Settings(BaseSettings):
     def normalize_optional_secret(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():
             return None
+        return value
+
+    @field_validator("auth_test_accounts")
+    @classmethod
+    def validate_auth_test_accounts(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None:
+            from app.modules.auth.credentials import load_test_accounts
+
+            load_test_accounts(value)
         return value
 
     @field_validator("model_base_url", mode="before")

@@ -206,6 +206,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 12px;
 }
 .header-note__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--navy); }
+.workspace-save-status { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-faint); font-size: 11px; white-space: nowrap; }
+.workspace-save-status.is-saving { color: var(--navy-2); }
+.workspace-save-status.is-error { color: var(--error); }
+.workspace-save-status button { min-height: 30px; padding: 0 8px; border: 1px solid var(--error); background: var(--white); color: var(--error); font-size: 11px; font-weight: 700; }
 
 .app-main { padding: 32px 0 64px; }
 
@@ -1218,6 +1222,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .brand__name { font-size: 14px; }
   .brand__tagline { display: none; }
   .header-note { font-size: 10px; padding: 4px 10px; }
+  .workspace-save-status { max-width: 95px; white-space: normal; font-size: 9px; line-height: 1.35; }
   .app-main { padding-top: 16px; }
   .workspace-bar__nav { margin-top: 8px; padding-top: 8px; }
   .feature-nav { width: 100%; flex-wrap: wrap; }

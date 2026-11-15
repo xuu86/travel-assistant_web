@@ -2,11 +2,15 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BudgetPanel } from "./BudgetPanel";
+import { extractOrderPrices } from "./order-import";
+
+vi.mock("./order-import", () => ({ extractOrderPrices: vi.fn() }));
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 function successResponse(overrides: Record<string, unknown> = {}) {
@@ -69,6 +73,45 @@ describe("BudgetPanel", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "这是我补填的未报价费用" }));
 
     expect(screen.getByRole("note")).toHaveTextContent("用户填写，非平台报价");
+  });
+
+  it("imports an order price into paid transport costs after confirmation", async () => {
+    vi.mocked(extractOrderPrices).mockResolvedValue([
+      { amount: "349.50", label: "实付金额", priority: 0 },
+      { amount: "399.00", label: "订单金额", priority: 1 },
+    ]);
+    render(<BudgetPanel destinationName="杭州" />);
+
+    fireEvent.change(screen.getByRole("button", { name: "导入车票订单" }).parentElement?.querySelector("input[type=file]") as HTMLInputElement, {
+      target: { files: [new File(["ticket order"], "ticket.pdf", { type: "application/pdf" })] },
+    });
+
+    expect(await screen.findByRole("dialog", { name: "核对识别金额" })).toBeVisible();
+    expect(screen.getByLabelText(/实付金额/)).toBeChecked();
+    expect(screen.getByLabelText("已支付")).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "添加到预算" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("已将 ¥349.50 添加为往返交通已支付费用");
+    expect(screen.getByRole("textbox", { name: "费用项 2 已支付（元）" })).toHaveValue("349.50");
+  });
+
+  it("defaults unverified ticket prices to unpaid and lets the user confirm that state", async () => {
+    vi.mocked(extractOrderPrices).mockResolvedValue([
+      { amount: "128.00", label: "票价", priority: 2 },
+    ]);
+    render(<BudgetPanel destinationName="杭州" />);
+
+    const fileInput = screen.getByLabelText("选择车票订单文件");
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["ticket order"], "ticket.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByRole("dialog", { name: "核对识别金额" })).toBeVisible();
+    expect(screen.getByLabelText("预计待支付")).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "添加到预算" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("已将 ¥128.00 添加为往返交通预计待支付费用");
+    expect(screen.getByRole("textbox", { name: "费用项 2 预计待支付（元）" })).toHaveValue("128.00");
   });
 
   it("ignores a delayed calculation after the budget inputs change", async () => {

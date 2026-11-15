@@ -8,8 +8,13 @@
     "npm": "11.19.1"
   },
   "dependencies": {
+    "@tesseract.js-data/chi_sim": "1.0.0",
+    "mammoth": "^1.13.0",
+    "pdfjs-dist": "^6.5.438",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "tesseract.js": "^7.0.0",
+    "tesseract.js-core": "7.0.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -46,4 +51,3 @@
     "secretlint": "secretlint"
   }
 }
-

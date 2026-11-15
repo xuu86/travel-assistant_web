@@ -31,6 +31,35 @@
 .budget-input-wrap input:focus-visible { outline: 0; }
 .text-button { min-height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--white); color: var(--navy); font-weight: 700; cursor: pointer; }
 .text-button:hover { border-color: var(--navy); background: var(--teal-pale); }
+.text-button:disabled { cursor: wait; opacity: .65; }
+.budget-cost-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.budget-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+.budget-file-input:focus-visible + .text-button { outline: 3px solid rgb(177 61 34 / 45%); outline-offset: 2px; }
+.budget-import-status, .budget-import-success { margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--navy); background: var(--teal-pale); color: var(--navy); font-size: 13px; line-height: 1.6; }
+.budget-import-success { border-color: #52785c; background: #edf4ed; color: #315339; }
+.budget-import-help { margin: -5px 0 16px; color: var(--ink-faint); font-size: 12px; line-height: 1.6; }
+.budget-import-dialog { width: min(100%, 480px); max-height: min(90vh, 720px); margin: auto; overflow-y: auto; padding: 24px; border: 1px solid var(--line-strong); border-top: 4px solid var(--rust); background: var(--paper-light); color: var(--ink); box-shadow: 0 18px 48px rgb(0 0 0 / 22%); }
+.budget-import-dialog::backdrop { background: rgb(20 31 37 / 56%); }
+.budget-import-dialog__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.budget-import-dialog__heading h2 { margin: 0; font-family: var(--font-display); font-size: 24px; line-height: 1.3; }
+.budget-import-close { width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid var(--line-strong); background: var(--white); color: var(--ink); font-size: 25px; line-height: 1; cursor: pointer; }
+.budget-import-filename { margin: 16px 0; overflow-wrap: anywhere; color: var(--ink-faint); font-size: 12px; }
+.budget-import-options { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.budget-import-options legend { margin-bottom: 9px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
+.budget-import-option { display: flex; align-items: center; gap: 11px; min-height: 58px; padding: 9px 12px; border: 1px solid var(--line); background: var(--white); cursor: pointer; }
+.budget-import-option:has(input:checked) { border-color: var(--navy); box-shadow: inset 3px 0 var(--navy); }
+.budget-import-option input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--navy); }
+.budget-import-option span { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; width: 100%; min-width: 0; }
+.budget-import-option strong { color: var(--ink); font-family: var(--font-display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.budget-import-option small { color: var(--ink-faint); font-size: 12px; }
+.budget-import-payment { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 0; padding: 0; border: 0; }
+.budget-import-payment legend { grid-column: 1 / -1; margin-bottom: 8px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
+.budget-import-payment label { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); background: var(--white); color: var(--ink-soft); font-size: 13px; cursor: pointer; }
+.budget-import-payment label:has(input:checked) { border-color: var(--navy); box-shadow: inset 3px 0 var(--navy); color: var(--ink); }
+.budget-import-payment input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--navy); }
+.budget-import-hint { margin: 14px 0 0; color: var(--ink-faint); font-size: 12px; line-height: 1.6; }
+.budget-import-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.budget-import-actions .budget-submit { min-width: 138px; min-height: 42px; box-shadow: 3px 3px 0 var(--mustard); }
 .budget-inline-note, .budget-source-note { margin: -5px 0 16px; color: var(--ink-faint); font-size: 12px; line-height: 1.65; }
 .cost-list { display: grid; gap: 10px; }
 .cost-row {
@@ -110,6 +139,10 @@
   .remove-cost { justify-self: start; }
   .budget-submit-row { align-items: stretch; flex-direction: column; }
   .budget-submit { width: 100%; }
+  .budget-cost-actions { width: 100%; }
+  .budget-cost-actions .text-button { flex: 1 1 auto; }
+  .budget-import-dialog { position: fixed; inset: auto 0 0; width: 100%; max-width: none; max-height: 88vh; margin: 0; padding: 20px 18px max(20px, env(safe-area-inset-bottom)); border-right: 0; border-bottom: 0; border-left: 0; }
+  .budget-import-actions > button { flex: 1 1 0; }
   .budget-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .budget-metric { min-height: 110px; padding: 15px 10px; border-bottom: 1px solid var(--line); }
   .budget-metric:nth-child(2) { border-right: 0; }

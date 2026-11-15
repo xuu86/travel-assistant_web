@@ -4,6 +4,8 @@ import { createDraftId } from "../../shared/draft-id";
 import { calculateBudget, type BudgetResponse } from "./api";
 import { COST_CATEGORIES, type CostCategory } from "./categories";
 import { formatFen, parseYuanToFen } from "./money";
+import { extractOrderPrices, type PriceCandidate } from "./order-import";
+import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import "./budget-panel.css";
 
 type CostDraft = {
@@ -25,15 +27,36 @@ function moneyLabel(value: number | null): string {
   return formatFen(value);
 }
 
+function isExplicitlyPaid(candidate: PriceCandidate): boolean {
+  return candidate.priority <= 1;
+}
+
 export function BudgetPanel({ destinationName, injectedCost }: { destinationName: string; injectedCost?: InjectedCost | null }) {
-  const [total, setTotal] = useState("");
-  const [reserve, setReserve] = useState("");
-  const [costs, setCosts] = useState<CostDraft[]>(() => [newCost()]);
+  const [total, setTotal] = usePersistentState("budget.total", "");
+  const [reserve, setReserve] = usePersistentState("budget.reserve", "");
+  const [costs, setCosts] = usePersistentState<CostDraft[]>("budget.costs", () => [newCost()]);
   const [summary, setSummary] = useState<BudgetResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importFileName, setImportFileName] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const [priceCandidates, setPriceCandidates] = useState<PriceCandidate[]>([]);
+  const [selectedPrice, setSelectedPrice] = useState(0);
+  const [importPaymentState, setImportPaymentState] = useState<"paid" | "unpaid">("paid");
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const importDialog = useRef<HTMLDialogElement>(null);
   const calculationSequence = useRef(0);
   const requestController = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const dialog = importDialog.current;
+    if (!dialog || !priceCandidates.length || dialog.open) return;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+  }, [priceCandidates.length]);
 
   useEffect(() => () => {
     calculationSequence.current += 1;
@@ -71,7 +94,7 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
       window.clearTimeout(applyTimer);
       window.clearTimeout(scrollTimer);
     };
-  }, [injectedCost]);
+  }, [injectedCost, setCosts]);
 
   function updateCost(id: string, patch: Partial<CostDraft>) {
     invalidateCalculation();
@@ -86,6 +109,47 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
   function removeCost(id: string) {
     invalidateCalculation();
     setCosts((current) => current.filter((cost) => cost.id !== id));
+  }
+
+  async function handleOrderFile(file?: File) {
+    if (!file) return;
+    setImportError(null);
+    setImportNotice(null);
+    setPriceCandidates([]);
+    setImportFileName(file.name);
+    setImportProgress(0);
+    setImporting(true);
+    try {
+      const candidates = await extractOrderPrices(file, setImportProgress);
+      setPriceCandidates(candidates);
+      setSelectedPrice(0);
+      setImportPaymentState(isExplicitlyPaid(candidates[0]!) ? "paid" : "unpaid");
+    } catch (cause) {
+      setImportError(cause instanceof Error ? cause.message : "订单识别失败，请检查文件后重试。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function confirmOrderImport() {
+    const candidate = priceCandidates[selectedPrice];
+    if (!candidate) return;
+    try {
+      parseYuanToFen(candidate.amount);
+      invalidateCalculation();
+      setCosts((current) => [...current, {
+        ...newCost(),
+        category: "往返交通",
+        paid: importPaymentState === "paid" ? candidate.amount : "",
+        unpaid: importPaymentState === "unpaid" ? candidate.amount : "",
+        userQuote: false,
+      }]);
+      setPriceCandidates([]);
+      setImportNotice(`已将 ¥${candidate.amount} 添加为往返交通${importPaymentState === "paid" ? "已支付" : "预计待支付"}费用。`);
+    } catch (cause) {
+      setImportError(cause instanceof Error ? cause.message : "识别金额无效，请手动核对后重试。");
+      setPriceCandidates([]);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -144,7 +208,7 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
           <h1 id="budget-title">旅行预算</h1>
           <p>整趟旅行总额 · 全体出行人员 · 人民币</p>
         </div>
-        <span className="budget-session-note">仅本页计算，不会自动保存</span>
+        <span className="budget-session-note">输入与费用明细保存在此浏览器</span>
       </header>
       <p className="budget-destination">目的地：<strong>{destinationName}</strong></p>
 
@@ -193,8 +257,25 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
               <p className="budget-step">02 / COSTS</p>
               <h2 id="cost-list-title">费用明细</h2>
             </div>
-            <button className="text-button" type="button" onClick={addCost}>添加费用</button>
+            <div className="budget-cost-actions">
+              <button className="text-button" type="button" onClick={() => fileInput.current?.click()} disabled={importing}>
+                {importing ? "正在识别…" : "导入车票订单"}
+              </button>
+              <input
+                ref={fileInput}
+                className="budget-file-input"
+                type="file"
+                accept=".docx,.pdf,.jpg,.jpeg,.png"
+                aria-label="选择车票订单文件"
+                onChange={(event) => { void handleOrderFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }}
+              />
+              <button className="text-button" type="button" onClick={addCost}>添加费用</button>
+            </div>
           </div>
+          {importing && <p className="budget-import-status" role="status">正在本地识别 {importFileName}{importProgress > 0 ? `：${Math.round(importProgress * 100)}%` : "…"}</p>}
+          {importError && <p className="budget-error" role="alert">{importError}</p>}
+          {importNotice && <p className="budget-import-success" role="status">{importNotice}</p>}
+          <p className="budget-import-help">支持 Word（.docx）、PDF、JPG/PNG；文件只在本机解析。扫描件使用本站 OCR 资源，订单文件不会上传。</p>
           <p className="budget-inline-note">已支付与预计待支付分别填写；没有可确认金额时留空，不要填 0。</p>
           <div className="cost-list">
             {costs.length === 0 && <p className="cost-empty">还没有费用项。可先添加已知的交通、住宿或其他费用。</p>}
@@ -229,12 +310,52 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
 
         {error && <p className="budget-error" role="alert">{error}</p>}
         <div className="budget-submit-row">
-          <p>输入金额最多两位小数 · 预算与费用不会跨刷新保存</p>
+          <p>输入金额最多两位小数 · 预算输入与费用明细自动保存</p>
           <button className="budget-submit" type="submit" disabled={loading}>
             {loading ? "正在计算…" : "计算预算"}
           </button>
         </div>
       </form>
+
+      {priceCandidates.length > 0 && (
+        <dialog
+          ref={importDialog}
+          className="budget-import-dialog"
+          aria-labelledby="budget-import-title"
+          onCancel={(event) => { event.preventDefault(); setPriceCandidates([]); }}
+        >
+          <div className="budget-import-dialog__heading">
+            <div>
+              <p className="budget-step">ORDER IMPORT</p>
+              <h2 id="budget-import-title">核对识别金额</h2>
+            </div>
+            <button className="budget-import-close" type="button" onClick={() => setPriceCandidates([])} aria-label="关闭金额核对">×</button>
+          </div>
+          <p className="budget-import-filename">{importFileName}</p>
+          <fieldset className="budget-import-options">
+            <legend>选择要计入预算的订单金额</legend>
+            {priceCandidates.map((candidate, index) => (
+              <label className="budget-import-option" key={`${candidate.label}-${candidate.amount}-${index}`}>
+                <input type="radio" name="imported-order-price" checked={selectedPrice === index} onChange={() => {
+                  setSelectedPrice(index);
+                  setImportPaymentState(isExplicitlyPaid(candidate) ? "paid" : "unpaid");
+                }} />
+                <span><strong>¥{candidate.amount}</strong><small>{candidate.label}</small></span>
+              </label>
+            ))}
+          </fieldset>
+          <fieldset className="budget-import-payment">
+            <legend>订单支付状态</legend>
+            <label><input type="radio" name="import-payment-state" checked={importPaymentState === "paid"} onChange={() => setImportPaymentState("paid")} /> 已支付</label>
+            <label><input type="radio" name="import-payment-state" checked={importPaymentState === "unpaid"} onChange={() => setImportPaymentState("unpaid")} /> 预计待支付</label>
+          </fieldset>
+          <p className="budget-import-hint">识别结果不能验证订单是否付款；请核对金额与支付状态后再添加。</p>
+          <div className="budget-import-actions">
+            <button className="text-button" type="button" onClick={() => setPriceCandidates([])}>取消</button>
+            <button className="budget-submit" type="button" onClick={confirmOrderImport}>添加到预算</button>
+          </div>
+        </dialog>
+      )}
 
       {summary && <BudgetResult summary={summary} />}
     </section>

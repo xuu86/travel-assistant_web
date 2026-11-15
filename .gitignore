@@ -20,3 +20,4 @@ test-results/
 .vitest/
 *.tsbuildinfo
 .tools/flyai/
+frontend/public/ocr/

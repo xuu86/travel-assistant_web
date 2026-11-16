@@ -1,6 +1,6 @@
 # Web Capability Map
 
-> **状态：已批准｜版本：v0.4｜批准日期：2026-10-27；`destination-workspace` 增补批准：2026-10-28**  
+> **状态：已批准｜版本：v0.5｜批准日期：2026-10-27；`destination-workspace` 增补批准：2026-10-28**
 > 本图稳定 Web 首版模块 ID、职责边界、依赖方向和分层顺序。各模块仍须单独完成 SPEC 审阅；地图获批不等于模块规格、计划、任务或实现获批。
 
 | module id | 责任边界 | 依赖 |
@@ -17,6 +17,8 @@
 | `assistant` | 模型供应商适配、自然语言理解和候选变更，不直接提交业务状态 | foundation |
 | `recommendations` | 天气／活动城市推荐、附近城市、图片降级 | foundation、weather、activities |
 | `itinerary` | 单城市日程、时段／事实约束、锁定保护和 ChangeSet 原子应用 | 上述查询、imports、budget、assistant |
+| `unknown-ledger` | 聚合 owner 工作区中的非核实字段，计算应用内 T-7/T-3/T-0 核实提示；不修改来源事实 | weather、transport、hotels、activities、attractions、budget、itinerary、local-storage |
+| `itinerary-checkup` | 只读计算单城市行程时间、预算、体力、天气和未核实项五维体检；产生最多三条可审阅建议 | itinerary、budget、weather、unknown-ledger |
 | `auth` | 游客会话和五个测试账号校验，提供稳定 owner scope | foundation |
 | `local-storage` | IndexedDB 行程与凭证分区、版本和删除 | auth、itinerary |
 | `maps` | 地图展示和日程联动；不拥有路线查询 | itinerary、transport |
@@ -32,14 +34,14 @@
 - 酒店、活动、景点和地图：高德 Web 服务 POI/静态地图代理、四个后端路由、前端搜索工作区、分页、选点联动、地图缩放和失败状态已实现；后端 407 项测试、前端 98 项单测及上海真实连通性快照已记录。地点查询不提供酒店报价/余房、活动档期或景点开放/预约事实，地图不拥有路线查询。
 - 行程：单城市手工草稿与确认状态通过 IndexedDB 按 owner 保存并可在本浏览器恢复；仍无行程服务端读写 API、跨设备同步、地图路线联动或 PDF 导出。
 - 认证与本地保存：游客/测试账号登录、登出保留、IndexedDB 分区和工作区快照已实现；真实账号未配置，无云端同步。会话保存在单进程内存，只适用于本机/受控局域网测试。
-- 亮点方案 L1“信息护照”已接入天气、班次、地点、预算和行程；首期 L2“未知项账本”、L6“行程体检报告”尚未实现。推荐及 exports 尚未实现。
+- 亮点方案 L1“信息护照”已接入天气、班次、地点、预算和行程；L2 `unknown-ledger` 已完成本地实现，正进行全量回归与 GitHub/服务器独立发布验收；L6 `itinerary-checkup` 规格与计划已批准，等待 L2 发布验收后开始编码。推荐及 exports 尚未实现。
 - 助手已有离线/fake 流程和 provider adapter；真实模型服务的资格、条款、费用、隐私及质量仍待核验。
 
 以上状态不改变获批的模块职责与依赖方向；实时数据、持久化和生产能力必须依据各自验收证据判断。
 
 ## 批准的依赖方向与分层顺序
 
-`foundation` → 查询模块、`auth`、`budget`、`assistant` → `destination-workspace`、`imports`、`recommendations`、`itinerary` → `local-storage`、`maps`、`exports`。
+`foundation` → 查询模块、`auth`、`budget`、`assistant` → `destination-workspace`、`imports`、`recommendations`、`itinerary` → `local-storage` → `unknown-ledger` → `itinerary-checkup`；`maps`、`exports` 按各自已定义依赖实现。
 
 该顺序表示依赖层级，不要求同层模块必须并行开发。核心边界：
 

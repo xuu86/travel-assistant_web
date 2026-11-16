@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { createDraftId } from "../../shared/draft-id";
 import { calculateBudget, type BudgetResponse } from "./api";
@@ -7,6 +7,8 @@ import { formatFen, parseYuanToFen } from "./money";
 import { extractOrderPrices, type PriceCandidate } from "./order-import";
 import { EvidencePassport } from "../../shared/EvidencePassport";
 import { usePersistentState } from "../local-storage/useWorkspacePersistence";
+import { useLedgerSource } from "../unknown-ledger/context";
+import type { LedgerObservation } from "../unknown-ledger/model";
 import "./budget-panel.css";
 
 type CostDraft = {
@@ -55,6 +57,20 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
   const importDialog = useRef<HTMLDialogElement>(null);
   const calculationSequence = useRef(0);
   const requestController = useRef<AbortController | null>(null);
+
+  const ledgerObservations = useMemo<LedgerObservation[]>(() => costs.flatMap((cost) => ([
+    ...(cost.paid.trim() === "" ? [{
+      source_key: `budget:${cost.id}:paid`, module: "budget" as const, subject: cost.category,
+      field: "已支付金额", evidence_state: "unknown" as const, impact: "low" as const,
+      travel_date: null, retrieved_at: null,
+    }] : []),
+    ...(cost.unpaid.trim() === "" ? [{
+      source_key: `budget:${cost.id}:unpaid`, module: "budget" as const, subject: cost.category,
+      field: "预计待支付金额", evidence_state: "unknown" as const, impact: "low" as const,
+      travel_date: null, retrieved_at: null,
+    }] : []),
+  ])), [costs]);
+  useLedgerSource("budget", { module: "budget", status: "complete" }, ledgerObservations);
 
   useEffect(() => {
     const dialog = importDialog.current;
@@ -294,7 +310,10 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
           <div className="cost-list">
             {costs.length === 0 && <p className="cost-empty">还没有费用项。可先添加已知的交通、住宿或其他费用。</p>}
             {costs.map((cost, index) => (
-              <fieldset className="cost-row" key={cost.id}>
+              <fieldset className="cost-row" key={cost.id} data-ledger-source-keys={JSON.stringify([
+                ...(cost.paid.trim() === "" ? [`budget:${cost.id}:paid`] : []),
+                ...(cost.unpaid.trim() === "" ? [`budget:${cost.id}:unpaid`] : []),
+              ])} tabIndex={-1}>
                 <legend>费用项 {index + 1}</legend>
                 <label className="budget-field cost-category">
                   <span>类别</span>

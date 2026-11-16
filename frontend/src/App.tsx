@@ -6,6 +6,8 @@ import { BudgetPanel, type InjectedCost } from "./features/budget/BudgetPanel";
 import { COST_CATEGORIES } from "./features/budget/categories";
 import { TransportPanel } from "./features/transport/TransportPanel";
 import { ItineraryPanel, type InjectedItinerary } from "./features/itinerary/ItineraryPanel";
+import { UnknownLedgerPanel } from "./features/unknown-ledger/UnknownLedgerPanel";
+import type { LedgerModule } from "./features/unknown-ledger/model";
 import { AssistantPanel } from "./features/assistant/AssistantPanel";
 import { ChecklistPanel } from "./features/checklist/ChecklistPanel";
 import { NotesPanel } from "./features/notes/NotesPanel";
@@ -180,7 +182,8 @@ function safeWeatherError(error: unknown): WeatherApiError {
 }
 
 export function App() {
-  const [activeView, setActiveView] = usePersistentState<"weather" | "budget" | "transport" | "itinerary" | "checklist" | "notes" | "assistant" | "hotels" | "activities" | "attractions" | "maps">("workspace.active-view", "weather");
+  const [activeView, setActiveView] = usePersistentState<"weather" | "budget" | "transport" | "itinerary" | "checklist" | "notes" | "assistant" | "hotels" | "activities" | "attractions" | "maps" | "unknown-ledger">("workspace.active-view", "weather");
+  const [ledgerSourceToFocus, setLedgerSourceToFocus] = useState<string | null>(null);
   const [mapPlace, setMapPlace] = usePersistentState<Place | null>("workspace.map-selection", null);
   const [selectedDestinationId, setSelectedDestinationId] = usePersistentState("workspace.destination-choice", "");
   const [hoveredCityId, setHoveredCityId] = useState<WeatherQuery["city_id"] | null>(null);
@@ -224,6 +227,24 @@ export function App() {
   const [weatherState, setWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
   const [todayWeatherState, setTodayWeatherState] = useState<WeatherPanelState>({ status: "unconfigured" });
   const persistence = useWorkspacePersistence();
+
+  useEffect(() => {
+    if (!ledgerSourceToFocus) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = [...document.querySelectorAll<HTMLElement>("[data-ledger-source-keys]")]
+        .find((element) => {
+          try {
+            return (JSON.parse(element.dataset.ledgerSourceKeys ?? "[]") as string[]).includes(ledgerSourceToFocus);
+          } catch {
+            return false;
+          }
+        });
+      target?.scrollIntoView({ block: "center", behavior: "smooth" });
+      target?.focus({ preventScroll: true });
+      setLedgerSourceToFocus(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeView, ledgerSourceToFocus]);
 
   const rangeDays = requestedDays(startDate, endDate);
   // 悬停优先，其次保留已选中城市，让背景图持续显示
@@ -823,6 +844,10 @@ export function App() {
                     <span className="feature-nav__icon" aria-hidden="true">☰</span>
                     <span className="feature-nav__text"><strong>行程</strong><small aria-hidden="true">ITINERARY</small></span>
                   </button>
+                  <button type="button" aria-pressed={activeView === "unknown-ledger"} onClick={() => setActiveView("unknown-ledger")}>
+                    <span className="feature-nav__icon" aria-hidden="true">!</span>
+                    <span className="feature-nav__text"><strong>待核实</strong><small aria-hidden="true">LEDGER</small></span>
+                  </button>
                   <button type="button" aria-pressed={activeView === "checklist"} onClick={() => setActiveView("checklist")}>
                     <span className="feature-nav__icon" aria-hidden="true">✓</span>
                     <span className="feature-nav__text"><strong>清单</strong><small aria-hidden="true">CHECKLIST</small></span>
@@ -972,6 +997,12 @@ export function App() {
             <div className="workspace-view" hidden={activeView !== "budget"} key={`budget-${workspaceKey}`}><BudgetPanel destinationName={destination.name} injectedCost={injectedCost} /></div>
             <div className="workspace-view" hidden={activeView !== "transport"} key={`transport-${workspaceKey}`}><TransportPanel key={workspaceKey} initialDestination={destination.name} initialOrigin={originPlace} originLocationStatus={originLocationStatus} /></div>
             <div className="workspace-view" hidden={activeView !== "itinerary"} key={`itinerary-${workspaceKey}`}><ItineraryPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} injectedItem={injectedItinerary} /></div>
+            <div className="workspace-view" hidden={activeView !== "unknown-ledger"} key={`unknown-ledger-${workspaceKey}`}>
+              <UnknownLedgerPanel departureDate={tripStartDate} onOpenSource={(module: LedgerModule, sourceKey: string) => {
+                setLedgerSourceToFocus(sourceKey);
+                setActiveView(module);
+              }} />
+            </div>
             <div className="workspace-view" hidden={activeView !== "checklist"} key={`checklist-${workspaceKey}`}><ChecklistPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} /></div>
             <div className="workspace-view" hidden={activeView !== "notes"} key={`notes-${workspaceKey}`}><NotesPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} /></div>
             <div className="workspace-view" hidden={activeView !== "assistant"} key={`assistant-${workspaceKey}`}><AssistantPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} evidence={assistantEvidence} /></div>
@@ -1006,6 +1037,8 @@ export function App() {
                   ? "地点与地图来自高德；报价、档期及开放情况需另行核实"
                 : activeView === "itinerary"
                   ? "行程草稿保存在此浏览器，不连接订票或地图服务"
+                  : activeView === "unknown-ledger"
+                    ? "未知与未核实字段保持原状态，并按出发日提示复核"
                   : activeView === "checklist"
                     ? "行前清单保存在此浏览器的当前用户分区"
                     : activeView === "notes"

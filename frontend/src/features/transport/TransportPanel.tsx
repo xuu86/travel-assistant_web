@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import type { components } from "../../shared/api-contracts";
 import { EvidencePassport } from "../../shared/EvidencePassport";
+import { useLedgerSource } from "../unknown-ledger/context";
+import type { LedgerObservation, LedgerScanStatus } from "../unknown-ledger/model";
 import { AIRPORTS, airportDistanceKm, nearestAirport, placeCoordinates } from "./airports";
 import {
   fetchTransportFares,
@@ -165,7 +167,10 @@ function ScheduleCards({ data }: { data: FareResponse }) {
   return (
     <div className="transport-results" aria-label="班次结果">
       {offers.map((offer) => (
-        <article className="transport-result-card" key={offer.offer_id}>
+        <article className="transport-result-card" key={offer.offer_id} data-ledger-source-keys={JSON.stringify(offer.segments.flatMap((segment) => [
+          ...(!segment.departure_at ? [`transport:schedule:${offer.offer_id}:${segment.segment_id}:departure`] : []),
+          ...(!segment.arrival_at ? [`transport:schedule:${offer.offer_id}:${segment.segment_id}:arrival`] : []),
+        ]))} tabIndex={-1}>
           <div className="transport-result-card__topline">
             <span className="transport-result-card__eyebrow">{offer.mode === "flight" ? "航班" : "铁路"} · {offer.travel_date}</span>
             <span className={`transport-evidence transport-evidence--${offer.evidence_state}`}>
@@ -243,6 +248,31 @@ export function TransportPanel({
   const [childCount, setChildCount] = usePersistentState("transport.child-count", "");
   const [fareFormError, setFareFormError] = useState<string | null>(null);
   const [fareState, setFareState] = useState<QueryState<FareResponse>>({ status: "unconfigured" });
+  const ledgerObservations = useMemo<LedgerObservation[]>(() => {
+    if (fareState.status !== "result" || fareState.data.state === "demo") return [];
+    return (fareState.data.items ?? []).flatMap((offer) => offer.segments.flatMap((segment) => {
+      const sourceTime = fareState.data.sources?.find((source) => source.source_id === offer.source_id)?.retrieved_at ?? null;
+      const subject = offer.mode === "rail" ? "铁路班次" : "航班";
+      return [
+        ...(!segment.departure_at ? [{
+          source_key: `transport:schedule:${offer.offer_id}:${segment.segment_id}:departure`,
+          module: "transport" as const, subject, field: "出发时刻", evidence_state: offer.evidence_state,
+          impact: "medium" as const, travel_date: offer.travel_date, retrieved_at: sourceTime,
+        }] : []),
+        ...(!segment.arrival_at ? [{
+          source_key: `transport:schedule:${offer.offer_id}:${segment.segment_id}:arrival`,
+          module: "transport" as const, subject, field: "到达时刻", evidence_state: offer.evidence_state,
+          impact: "medium" as const, travel_date: offer.travel_date, retrieved_at: sourceTime,
+        }] : []),
+      ];
+    }));
+  }, [fareState]);
+  const ledgerScanStatus: LedgerScanStatus = fareState.status === "result"
+    ? fareState.data.state === "live" ? "complete"
+      : fareState.data.state === "partial" ? "partial"
+        : fareState.data.state === "demo" ? "unavailable" : "complete"
+    : fareState.status === "idle" || fareState.status === "loading" ? "not_loaded" : "unavailable";
+  useLedgerSource("transport", { module: "transport", status: ledgerScanStatus }, ledgerObservations);
   const fareSequence = useRef(0);
   const originCoordinates = origin.latitude != null && origin.longitude != null
     ? { latitude: origin.latitude, longitude: origin.longitude }

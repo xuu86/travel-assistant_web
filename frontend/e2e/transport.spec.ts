@@ -111,7 +111,7 @@ test("transport starts without a request and keeps synthetic rail details explic
   await page.getByLabel(/目标出行日期/).fill("2026-11-10");
   await page.getByLabel(/成人数量/).fill("2");
   await page.getByRole("button", { name: "查询班次" }).click();
-  await expect(page.getByRole("status")).toContainText("服务尚未配置");
+  await expect(page.locator(".transport-result-note")).toContainText("服务尚未配置");
   await expect(page.getByRole("article")).toHaveCount(0);
   await expect(page.getByText("测试 fixture")).toHaveCount(0);
 

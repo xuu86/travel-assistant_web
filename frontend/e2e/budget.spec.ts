@@ -38,7 +38,7 @@ test("budget workflow reports reserve reminder and quote source accurately", asy
   await page.getByRole("textbox", { name: "费用项 1 预计待支付（元）" }).fill("1500");
   await page.getByRole("button", { name: "计算预算" }).click();
 
-  await expect(page.getByRole("status")).toHaveText("预计在预算内");
+  await expect(page.locator(".budget-state")).toHaveText("预计在预算内");
   await expect(page.locator(".budget-source-warning")).toContainText("用户填写，非平台报价");
   await expect(page.locator(".budget-reminder")).toContainText("尚未设置预留金");
   expect(requestBody?.total_budget_fen).toBe(300000);
@@ -89,7 +89,7 @@ test("shows a minimum known overspend without hiding missing costs", async ({ pa
   await page.getByRole("textbox", { name: "费用项 1 已支付（元）" }).fill("3500");
   await page.getByRole("button", { name: "计算预算" }).click();
 
-  await expect(page.getByRole("status")).toHaveText("已知费用至少超出");
+  await expect(page.locator(".budget-state")).toHaveText("已知费用至少超出");
   await expect(page.getByRole("alert")).toContainText("至少超出");
   await expect(page.getByText(/已知小计不代表最终支出/)).toBeVisible();
 });

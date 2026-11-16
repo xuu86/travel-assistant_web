@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { EvidencePassport } from "../../shared/EvidencePassport";
 import { usePersistentState } from "../local-storage/useWorkspacePersistence";
+import { useLedgerSource } from "../unknown-ledger/context";
+import { createObservationSourceKey, type LedgerModule, type LedgerObservation, type LedgerScanStatus } from "../unknown-ledger/model";
 import { searchPlaces, type Place, type PlaceCategory, type PlaceResult } from "./api";
 import "./places.css";
 
@@ -42,7 +44,33 @@ export function PlacesPanel({ category, cityId, cityName, onSelect }: {
   const [submittedKeywords, setSubmittedKeywords] = useState("");
   const controller = useRef<AbortController | null>(null);
   const sequence = useRef(0);
+  const ledgerModule: LedgerModule = category === "hotels" ? "hotels"
+    : category === "activities" ? "activities" : "attractions";
   useEffect(() => () => { sequence.current += 1; controller.current?.abort(); }, []);
+
+  const ledgerObservations = useMemo<LedgerObservation[]>(() => {
+    if (!result || !["hotels", "activities", "attractions"].includes(category)) return [];
+    const field = category === "hotels" ? "实时房价与房态"
+      : category === "activities" ? "活动档期与门票状态"
+        : "开放时间与预约要求";
+    const impact = category === "activities" ? "medium" as const : "high" as const;
+    return result.items.map((place) => ({
+      source_key: createObservationSourceKey(ledgerModule, place.id, field),
+      module: ledgerModule,
+      subject: place.name,
+      field,
+      evidence_state: "unknown",
+      impact,
+      travel_date: null,
+      retrieved_at: result.sources.find((source) => source.source_id === place.source_id)?.retrieved_at ?? null,
+    }));
+  }, [category, ledgerModule, result]);
+  const ledgerScanStatus: LedgerScanStatus = loading || (!result && !error)
+    ? "not_loaded"
+    : error ? "unavailable"
+      : result?.state === "partial" ? "partial"
+        : result?.state === "live" || result?.state === "empty" ? "complete" : "unavailable";
+  useLedgerSource(ledgerModule, { module: ledgerModule, status: ledgerScanStatus }, ledgerObservations);
 
   async function search(page = 1, term = keywords.trim()) {
     controller.current?.abort();
@@ -97,7 +125,12 @@ export function PlacesPanel({ category, cityId, cityName, onSelect }: {
           {result.items.length > 0 && <ol className="places-list">
             {result.items.map((place, index) => {
               const source = result.sources.find((candidate) => candidate.source_id === place.source_id);
-              return <li key={place.id}>
+              return <li key={place.id} data-ledger-source-keys={JSON.stringify([createObservationSourceKey(
+                ledgerModule,
+                place.id,
+                category === "hotels" ? "实时房价与房态"
+                  : category === "activities" ? "活动档期与门票状态" : "开放时间与预约要求",
+              )])} tabIndex={-1}>
                 <span className="place-index" aria-hidden="true">{String((result.page - 1) * 10 + index + 1).padStart(2, "0")}</span>
                 <div className="place-details"><h3>{place.name}</h3><p>{place.address ?? "地址待补充"}</p>
                   {place.category && <p className="place-category">{place.category.split(";").join(" / ")}</p>}

@@ -4,6 +4,7 @@ import { AuthApiError, getAuthSession, login as loginRequest, logout as logoutRe
 import type { AuthIdentity, LoginInput } from "./api";
 import { getGuestOwnerId } from "../local-storage/repository";
 import { WorkspacePersistenceProvider } from "../local-storage/WorkspacePersistenceProvider";
+import { UnknownLedgerProvider } from "../unknown-ledger/UnknownLedgerProvider";
 import { AuthContext, guestIdentity } from "./auth-context";
 import type { AuthState } from "./auth-context";
 import { allowsCredentialSubmission } from "./credential-security";
@@ -95,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
   return <AuthContext.Provider value={value}>
     <WorkspacePersistenceProvider key={workspaceOwnerId} ownerId={workspaceOwnerId} beforeSwitchRef={beforeSwitchRef}>
-      {children}
+      <UnknownLedgerProvider>{children}</UnknownLedgerProvider>
     </WorkspacePersistenceProvider>
   </AuthContext.Provider>;
 }

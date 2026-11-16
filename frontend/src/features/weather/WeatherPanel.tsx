@@ -1,5 +1,8 @@
+import { useMemo } from "react";
 import type { components } from "../../shared/api-contracts";
 import { EvidencePassport } from "../../shared/EvidencePassport";
+import { useLedgerSource } from "../unknown-ledger/context";
+import type { LedgerObservation, LedgerScanStatus } from "../unknown-ledger/model";
 import { WeatherApiError } from "./api";
 import "./weather-panel.css";
 
@@ -15,6 +18,13 @@ export type WeatherPanelState =
   | { status: "error"; error: WeatherApiError };
 
 type WeatherPanelProps = { cityName: string; state: WeatherPanelState };
+const missingWeatherFields: [keyof WeatherDay, string][] = [
+  ["weather_code", "天气现象"],
+  ["temperature_min_c", "最低气温"],
+  ["temperature_max_c", "最高气温"],
+  ["precipitation_probability_max_pct", "降水概率"],
+  ["precipitation_sum_mm", "降水量"],
+];
 
 const weatherLabels: Record<number, string> = {
   0: "晴", 1: "大部晴朗", 2: "局部多云", 3: "阴", 45: "雾", 48: "雾凇",
@@ -196,6 +206,45 @@ function emptyResultMessage(data: WeatherResult): string {
 export function WeatherPanel({ cityName, state }: WeatherPanelProps) {
   const data = state.status === "success" ? state.data : null;
   const source = data?.sources?.[0];
+  const ledgerObservations = useMemo<LedgerObservation[]>(() => {
+    if (!data || data.state === "demo") return [];
+    const observations: LedgerObservation[] = [];
+    for (const day of data.items ?? []) {
+      for (const [fieldKey, fieldLabel] of missingWeatherFields) {
+        if (day[fieldKey] === null || day[fieldKey] === undefined) {
+          observations.push({
+            source_key: `weather:forecast:${day.date}:${fieldKey}`,
+            module: "weather",
+            subject: `${day.date} 天气预报`,
+            field: fieldLabel,
+            evidence_state: "unknown",
+            impact: "medium",
+            travel_date: day.date,
+            retrieved_at: source?.retrieved_at ?? null,
+          });
+        }
+      }
+    }
+    for (const range of data.coverage?.missing ?? []) {
+      observations.push({
+        source_key: `weather:coverage:${range.start}:${range.end}`,
+        module: "weather",
+        subject: "天气预报",
+        field: `日期覆盖 ${range.start} 至 ${range.end}`,
+        evidence_state: "unverified",
+        impact: "medium",
+        travel_date: range.start,
+        retrieved_at: source?.retrieved_at ?? null,
+      });
+    }
+    return observations;
+  }, [data, source?.retrieved_at]);
+  const ledgerScanStatus: LedgerScanStatus = state.status === "success"
+    ? data?.state === "live" ? "complete"
+      : data?.state === "partial" ? "partial"
+        : data?.state === "demo" ? "unavailable" : "partial"
+    : state.status === "idle" || state.status === "loading" ? "not_loaded" : "unavailable";
+  useLedgerSource("weather", { module: "weather", status: ledgerScanStatus }, ledgerObservations);
   const missingText = data ? coverageText(data) : null;
   const requestedText = data ? requestedRangeText(data) : null;
   const items = data?.items ?? [];
@@ -253,7 +302,9 @@ export function WeatherPanel({ cityName, state }: WeatherPanelProps) {
               {items.map((day) => {
                 const headingId = `weather-day-${day.date}`;
                 return (
-                  <article className={`weather-day weather-day--${weatherVideoKey(day.weather_code)}`} key={day.date} aria-labelledby={headingId}>
+                  <article className={`weather-day weather-day--${weatherVideoKey(day.weather_code)}`} key={day.date} aria-labelledby={headingId}
+                    data-ledger-source-keys={JSON.stringify(missingWeatherFields.filter(([fieldKey]) => day[fieldKey] === null || day[fieldKey] === undefined)
+                      .map(([fieldKey]) => `weather:forecast:${day.date}:${fieldKey}`))} tabIndex={-1}>
                     <div className="weather-day__topline">
                       <time dateTime={day.date}>{formatDate(day.date)}</time>
                       <span className="weather-day__code">{day.weather_code ?? "—"}</span>

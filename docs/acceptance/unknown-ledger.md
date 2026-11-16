@@ -21,7 +21,11 @@
 - Secretlint：通过。
 - 后端：pytest 428 passed，Ruff 全项通过；仅有现存 Starlette/httpx 弃用提示。L2 未修改后端。
 
-Playwright 仅访问本机 Vite 与 loopback 测试 fixture；未调用真实天气、交通、地图或账号供应商。Chrome 由本机安装路径启动。构建与回归验证基于待发布工作树；GitHub 推送和服务器部署/线上健康及静态资源 hash 验收完成后，再补记发布提交及线上结果。
+Playwright 仅访问本机 Vite 与 loopback 测试 fixture；未调用真实天气、交通、地图或账号供应商。Chrome 由本机安装路径启动。生产构建来自 GitHub 提交 `7c492c196352f05bd61cfcf1d251fab0bda13bf5`，已推送到 `feature/unknown-ledger` 并部署至 `http://43.143.125.176:18080/`。
+
+线上验收：首页 HTTP 200；`/api/health` HTTP 200，响应 `{"status":"ok","version":"0.1.0"}`。线上 JS SHA-256 `2c5985191ec29ed776c600c31415d840a5231a35b3ba2abea42b411258d2376c`、CSS SHA-256 `6bb8c913ac43dabe30a60559863f7faaa3725c1fd8da08421e4a405c2df8870c`，均与提交构建产物一致。Caddy 静态目录部署前后 inode 均为 `65025:1091679`；旧静态产物备份在服务器 `/opt/travel-assistant/backups/frontend-before-unknown-ledger-7c492c1/frontend-dist.tar.gz`（SHA-256 `c4be5e382b6378563edc13871651bd92cab4dd961e75ef9e36d1b788ba79bc37`）。API 服务仍为 active，未更改 backend environment、Caddy 配置或服务单元。
+
+真实 HTTP 页面检查显示 `window.isSecureContext === false`，登录控件保持禁用（两个登录按钮均 `disabled=true`），只以游客身份运行；没有为 HTTP 发布放宽凭据提交安全门。
 
 ## 发布限制
 

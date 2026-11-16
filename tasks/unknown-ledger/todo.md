@@ -1,6 +1,6 @@
 # unknown-ledger 任务清单
 
-> 版本：v0.1｜状态：全量回归与发布验收中｜依据：[SPEC-unknown-ledger](../../docs/SPEC-unknown-ledger.md)、[实施计划](plan.md)。用户于 2026-11-16 批准本清单并授权按 L2 → 发布 → L6 顺序编码。
+> 版本：v0.1｜状态：已完成并发布｜依据：[SPEC-unknown-ledger](../../docs/SPEC-unknown-ledger.md)、[实施计划](plan.md)。用户于 2026-11-16 批准本清单并授权按 L2 → 发布 → L6 顺序编码。
 
 ## 固定规则
 
@@ -49,10 +49,10 @@
 
 ### UL-06 — 完成 E2E、全量回归、留证并逐模块发布
 
-- [ ] **验收：** 桌面/手机覆盖 owner 隔离、登出后恢复、来源被核实后关闭、已联系仍未核实、未加载/不可用/空账本区分、回源动作、T 节点显示和无障碍；Capability Map 与 `docs/acceptance/unknown-ledger.md` 反映实际范围。构建物来自发布提交。
+- [x] **验收：** 桌面/手机覆盖 owner 隔离、登出后恢复、来源被核实后关闭、已联系仍未核实、未加载/不可用/空账本区分、回源动作、T 节点显示和无障碍；Capability Map 与 `docs/acceptance/unknown-ledger.md` 反映实际范围。构建物来自发布提交。
 - **验证：** 前端 Vitest、typecheck、lint、build、全量 Playwright、Secretlint；后端 pytest/Ruff 回归；部署后 `/api/health` 为 200、线上 JS/CSS 哈希匹配构建、匿名 HTTP 不可提交凭据。
 - **文件：** `frontend/e2e/unknown-ledger.spec.ts`、验收记录、Capability Map（按阶段）。
-- **交付：** L2 单独提交并推送 GitHub；从该提交构建并部署服务器，备份配置与旧产物，保留 Caddy 静态目录 inode；发布验证完成后才转入 L6。
+- **交付：** L2 提交 `7c492c1` 已推送 GitHub 分支 `feature/unknown-ledger`；从该提交构建并部署服务器，备份旧产物，保留 Caddy 静态目录 inode。L2 发布验收完成后允许开始 L6。
 - **依赖：** UL-01 至 UL-05。
 
 ## 审批记录

@@ -68,15 +68,15 @@ afterEach(() => {
 });
 
 describe("TransportPanel", () => {
-  it("starts unconfigured without issuing requests or showing synthetic results", () => {
+  it("starts idle without falsely claiming configuration status or showing synthetic results", () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
     render(<TransportPanel initialDestination="杭州" />);
 
     expect(screen.getByRole("heading", { name: "交通查询" })).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("交通服务尚未配置");
-    expect(screen.getByRole("status")).toHaveTextContent("提交查询后仍不会使用测试数据或旧结果填补。");
-    expect(screen.queryByRole("button", { name: "市内路线" })).not.toBeInTheDocument();
+    expect(screen.getByText(/提交查询后显示班次与来源/)).toBeVisible();
+    expect(screen.queryByText("交通服务尚未配置")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "市内路线" })).toBeVisible();
     expect(screen.queryByText(/票价|费用项目/)).not.toBeInTheDocument();
     expect(screen.queryByText("测试 fixture")).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -111,6 +111,19 @@ describe("TransportPanel", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("shows the exact no-flight message only for a successful empty response", async () => {
+    const emptyResponse = fareResponse({
+      state: "empty", items: [], message: "当天没有该航班",
+    });
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(emptyResponse)));
+    render(<TransportPanel initialDestination="杭州" />);
+    fillFareQuery();
+    fireEvent.click(screen.getByRole("button", { name: /查询班次/ }));
+
+    expect(await screen.findByText("当天没有该航班")).toBeVisible();
+    expect(screen.queryByRole("article")).not.toBeInTheDocument();
+  });
+
   it("submits an explicit schedule date and never renders returned price fields", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(fareResponse()));
     vi.stubGlobal("fetch", fetchMock);
@@ -129,8 +142,8 @@ describe("TransportPanel", () => {
     }));
     const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(requestBody).toEqual({
-      origin: { display_name: "上海虹桥", place_id: "SHA", coordinate_system: "WGS84" },
-      destination: { display_name: "杭州萧山", place_id: "HGH", coordinate_system: "WGS84" },
+      origin: { display_name: "上海虹桥国际机场", place_id: "SHA", coordinate_system: "WGS84" },
+      destination: { display_name: "杭州萧山国际机场", place_id: "HGH", coordinate_system: "WGS84" },
       mode: "flight",
       travel_date: "2026-11-10",
       passenger_count: 2,
@@ -166,9 +179,9 @@ describe("TransportPanel", () => {
     const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(requestBody).toEqual({
       origin: {
-        display_name: "当前位置", place_id: "SHA", latitude: 30.25, longitude: 120.16, coordinate_system: "WGS84",
+        display_name: "上海虹桥国际机场", place_id: "SHA", latitude: 30.25, longitude: 120.16, coordinate_system: "WGS84",
       },
-      destination: { display_name: "杭州萧山", place_id: "HGH", coordinate_system: "WGS84" },
+      destination: { display_name: "杭州萧山国际机场", place_id: "HGH", coordinate_system: "WGS84" },
       mode: "flight",
       travel_date: "2026-11-10",
       passenger_count: 3,
@@ -287,6 +300,42 @@ describe("TransportPanel", () => {
     fireEvent.change(screen.getByRole("combobox", { name: /起飞机场/ }), { target: { value: "PVG" } });
     expect(screen.queryByText("FAKE-01")).not.toBeInTheDocument();
     expect(screen.getByText(/提交查询后显示班次与来源/)).toBeVisible();
+  });
+
+  it("queries city routes independently and never displays route fares", async () => {
+    const routeSource = { ...source, source_id: "amap.directions", display_name: "高德地图路线规划", evidence_state: "estimate" as const };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({
+      state: "partial", request_id: "route-request", queried_at: "2026-11-16T00:00:00Z",
+      message: "路线信息可能变化。", error: null, coverage: null, sources: [routeSource],
+      items: [{
+        route_id: "route-1", source_id: routeSource.source_id, mode: "transit",
+        origin_name: "杭州市杭州东站", destination_name: "杭州市西湖", distance_m: 3200,
+        duration_seconds: 1800, duration_basis: "typical_estimate", fare_amount_fen: 9999,
+        fare_basis: "per_route", evidence_state: "estimate", fare_evidence_state: "verified",
+        missing_fields: ["geometry_points"], steps: [{
+          instruction: "乘坐地铁测试线", step_mode: "subway", distance_m: 3200,
+          coordinate_system: "WGS84",
+        }],
+      }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TransportPanel initialDestination="杭州市西湖" initialOrigin={{
+      display_name: "杭州市杭州东站", coordinate_system: "WGS84",
+    }} />);
+    fireEvent.click(screen.getByRole("button", { name: "市内路线" }));
+    fireEvent.click(screen.getByRole("button", { name: /查询市内路线/ }));
+    expect(await screen.findByText("乘坐地铁测试线")).toBeVisible();
+    expect(screen.getByText("3.2 公里")).toBeVisible();
+    expect(screen.getByText("30 分钟")).toBeVisible();
+    expect(screen.queryByText(/票价|费用项目|¥|99\.99/)).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/transport/routes/search", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        origin: { display_name: "杭州市杭州东站", coordinate_system: "WGS84" },
+        destination: { display_name: "杭州市西湖", coordinate_system: "WGS84" },
+        mode: "transit",
+      }),
+    }));
   });
 
   it("marks nearest default airports and allows the user to change them", () => {

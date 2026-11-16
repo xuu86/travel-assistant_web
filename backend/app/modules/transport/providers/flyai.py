@@ -24,6 +24,7 @@ from app.modules.transport.contracts import (
     FareSegment,
     validate_fare_booking_url,
 )
+from app.modules.transport.providers.amadeus import AIRPORT_TIMEZONES
 from app.modules.transport.providers.base import TransportProviderError
 
 CLI_VERSION = "1.0.16"
@@ -82,6 +83,7 @@ class FlyAICommand:
         )
         payload = json.dumps(
             {
+                "mode": query.mode,
                 "origin": query.origin.display_name.strip(),
                 "destination": query.destination.display_name.strip(),
                 "date": query.travel_date.isoformat(),
@@ -221,6 +223,54 @@ class FlyAITrainFareProvider:
         try:
             payload = json.loads(output.stdout)
             return map_train_result(payload, query, request_id=request_id, now=self._now())
+        except ValueError, TypeError, KeyError, ValidationError:
+            raise TransportProviderError("unavailable") from None
+
+
+class FlyAIFlightFareProvider:
+    provider_id = "flyai.search-flight"
+
+    def __init__(
+        self,
+        *,
+        api_key: SecretStr,
+        node_path: str = "node",
+        timeout_seconds: float = 45,
+        max_response_bytes: int = 1024 * 1024,
+        executor: CliExecutor | None = None,
+        now: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._key = api_key
+        self._executor = executor if executor is not None else FlyAICommand(node_path)
+        self._timeout = timeout_seconds
+        self._limit = max_response_bytes
+        self._now = now or (lambda: datetime.now(UTC))
+
+    def search_fares(self, query: FareQuery, *, request_id: UUID) -> FareResult:
+        if query.mode != "flight":
+            raise TransportProviderError("no_coverage")
+        key = self._key.get_secret_value().strip()
+        if not key:
+            raise TransportProviderError("unconfigured")
+        if not query.origin.place_id or not query.destination.place_id:
+            raise TransportProviderError("no_coverage")
+        if query.travel_date < self._now().astimezone(_ZONE).date():
+            raise TransportProviderError("no_coverage")
+        output = self._executor.run(query, key=key, timeout=self._timeout, limit=self._limit)
+        if output.request_count != 1 or not output.authenticated:
+            raise TransportProviderError("unavailable")
+        if output.http_status in (401, 403):
+            raise TransportProviderError("policy_unavailable")
+        if output.http_status == 429:
+            raise TransportProviderError("rate_limited")
+        if output.http_status != 200 or output.exit_code != 0 or len(output.stdout) > self._limit:
+            raise TransportProviderError("unavailable")
+        if key.encode() in output.stdout:
+            raise TransportProviderError("unavailable")
+        try:
+            return map_flight_result(
+                json.loads(output.stdout), query, request_id=request_id, now=self._now()
+            )
         except ValueError, TypeError, KeyError, ValidationError:
             raise TransportProviderError("unavailable") from None
 
@@ -378,6 +428,181 @@ def map_train_result(
                 url="https://flyai.open.fliggy.com/",
                 retrieved_at=now,
                 attribution="基于飞猪 FlyAI 实时搜索；非按人数报价，班次与席位以供应商详情为准。",
+                evidence_state=EvidenceState.VERIFIED,
+            )
+        ],
+        queried_at=now,
+        request_id=request_id,
+        platform_hint=hint,
+    )
+
+
+def _flight_time(value: object, airport_code: str | None) -> tuple[datetime | None, str | None]:
+    if not isinstance(value, str) or not value.strip():
+        return None, None
+    text = value.strip().replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None, None
+    timezone = AIRPORT_TIMEZONES.get(airport_code or "")
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(UTC), timezone or "UTC"
+    if timezone is None:
+        return None, None
+    return parsed.replace(tzinfo=ZoneInfo(timezone)).astimezone(UTC), timezone
+
+
+def _flight_segment(raw: dict, index: int, query: FareQuery) -> FareSegment:
+    kind = _text(raw.get("transportType"), 40)
+    if kind is None or kind.casefold() not in {"飞机", "flight", "airplane", "aircraft"}:
+        raise ValueError("Unsupported transport type.")
+    departure_code = _text(raw.get("depStationCode"), 3)
+    arrival_code = _text(raw.get("arrStationCode"), 3)
+    departure_code = (
+        departure_code or (query.origin.place_id if index == 0 else None) or ""
+    ).upper()
+    arrival_code = (
+        arrival_code or (query.destination.place_id if index == 0 else None) or ""
+    ).upper()
+    departure_at, departure_timezone = _flight_time(raw.get("depDateTime"), departure_code)
+    arrival_at, arrival_timezone = _flight_time(raw.get("arrDateTime"), arrival_code)
+    return FareSegment(
+        segment_id=f"flight-leg-{index}",
+        origin_name=_text(raw.get("depStationName"), 240),
+        destination_name=_text(raw.get("arrStationName"), 240),
+        departure_at=departure_at,
+        arrival_at=arrival_at,
+        departure_timezone=departure_timezone,
+        arrival_timezone=arrival_timezone,
+        service_number=_text(raw.get("marketingTransportNo"), 80),
+        operating_carrier=_text(raw.get("marketingTransportName"), 160),
+        seat_class=_text(raw.get("seatClassName"), 120),
+    )
+
+
+def _matches_flight_endpoint(expected: str, *values: object) -> bool:
+    normalized = expected.strip().casefold()
+    return any(
+        isinstance(value, str) and value.strip().casefold() == normalized for value in values
+    )
+
+
+def _flight_offer(item: dict, index: int, query: FareQuery) -> FareOffer:
+    journeys = item.get("journeys")
+    if not isinstance(journeys, list) or not journeys or len(journeys) > 10:
+        raise ValueError("Invalid flight journeys.")
+    raw_segments = []
+    for journey in journeys:
+        segments = journey.get("segments") if isinstance(journey, dict) else None
+        if not isinstance(segments, list) or not segments:
+            raise ValueError("Invalid flight segments.")
+        raw_segments.extend(segments)
+    if len(raw_segments) > 30 or not all(isinstance(row, dict) for row in raw_segments):
+        raise ValueError("Invalid flight segment count.")
+    first_raw, last_raw = raw_segments[0], raw_segments[-1]
+    origin_code = _text(first_raw.get("depStationCode"), 3)
+    destination_code = _text(last_raw.get("arrStationCode"), 3)
+    origin_matches = _matches_flight_endpoint(
+        query.origin.place_id or query.origin.display_name,
+        origin_code,
+        first_raw.get("depCityName"),
+        first_raw.get("depStationName"),
+        first_raw.get("depStationShortName"),
+    )
+    destination_matches = _matches_flight_endpoint(
+        query.destination.place_id or query.destination.display_name,
+        destination_code,
+        last_raw.get("arrCityName"),
+        last_raw.get("arrStationName"),
+        last_raw.get("arrStationShortName"),
+    )
+    if not origin_matches or not destination_matches:
+        raise ValueError("Unmatched flight endpoints.")
+    first_departure = _text(first_raw.get("depDateTime"), 40)
+    if first_departure is None or first_departure[:10] != query.travel_date.isoformat():
+        raise ValueError("Unmatched flight date.")
+    segments = [_flight_segment(row, n, query) for n, row in enumerate(raw_segments)]
+    for previous, current in zip(segments, segments[1:], strict=False):
+        if (
+            previous.arrival_at
+            and current.departure_at
+            and current.departure_at < previous.arrival_at
+        ):
+            raise ValueError("Unordered flight itinerary.")
+    first, last = segments[0], segments[-1]
+    missing = [
+        "price_fen",
+        "price_basis",
+        "price_scope",
+        "passenger_count",
+        "remaining_seats",
+        "availability",
+        "included_charges",
+    ]
+    if len(segments) == 1 and first.service_number is None:
+        missing.append("service_number")
+    if first.departure_at is None:
+        missing.append("departure_at")
+    if last.arrival_at is None:
+        missing.append("arrival_at")
+    try:
+        booking_url = validate_fare_booking_url(_text(item.get("jumpUrl"), 4096))
+    except ValueError:
+        booking_url = None
+    return FareOffer(
+        offer_id=f"flyai-flight-{index}",
+        source_id=FlyAIFlightFareProvider.provider_id,
+        mode="flight",
+        travel_date=query.travel_date,
+        segments=segments,
+        service_number=first.service_number if len(segments) == 1 else None,
+        origin_name=first.origin_name or query.origin.display_name,
+        destination_name=last.destination_name or query.destination.display_name,
+        departure_at=first.departure_at,
+        arrival_at=last.arrival_at,
+        departure_timezone=first.departure_timezone,
+        arrival_timezone=last.arrival_timezone,
+        price_basis="unknown",
+        price_scope="unknown",
+        evidence_state=EvidenceState.VERIFIED,
+        missing_fields=missing,
+        booking_url=booking_url,
+    )
+
+
+def map_flight_result(
+    payload: object, query: FareQuery, *, request_id: UUID, now: datetime
+) -> FareResult:
+    if not isinstance(payload, dict) or type(payload.get("status")) is not int:
+        raise ValueError("Invalid flight business response.")
+    if payload["status"] != 0:
+        raise ValueError("Flight provider returned a business error.")
+    data = payload.get("data")
+    raw_items = data.get("itemList") if isinstance(data, dict) else None
+    if not isinstance(raw_items, list) or len(raw_items) > 10:
+        raise ValueError("Invalid flight result list.")
+    items = []
+    for index, raw in enumerate(raw_items):
+        if not isinstance(raw, dict):
+            continue
+        try:
+            items.append(_flight_offer(raw, index, query))
+        except ValueError, TypeError, ValidationError:
+            continue
+    if raw_items and not items:
+        raise ValueError("No valid flight result.")
+    hint = _text(payload.get("systemMessage"), 2000) or _text(data.get("systemMessage"), 2000)
+    return FareResult(
+        state=ResultState.PARTIAL if items else ResultState.EMPTY,
+        items=items,
+        sources=[
+            SourceRef(
+                source_id=FlyAIFlightFareProvider.provider_id,
+                display_name="飞猪 FlyAI 航班查询",
+                url="https://flyai.open.fliggy.com/",
+                retrieved_at=now,
+                attribution="航班与时刻来自飞猪 FlyAI；价格、余位和可购状态不在此显示。",
                 evidence_state=EvidenceState.VERIFIED,
             )
         ],

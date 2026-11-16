@@ -18,7 +18,8 @@ process.stdin.on('end', () => {
   try {
     const query = JSON.parse(input);
     const key = (process.env.FLYAI_API_KEY || '').trim();
-    if (!key || !query.origin || !query.destination || !/^\d{4}-\d{2}-\d{2}$/.test(query.date)) {
+    if (!key || !['rail', 'flight'].includes(query.mode) || !query.origin ||
+        !query.destination || !/^\d{4}-\d{2}-\d{2}$/.test(query.date)) {
       throw new Error('Invalid CLI input');
     }
     const timeout = Number(process.env.FLYAI_APP_TIMEOUT_MS);
@@ -34,8 +35,9 @@ process.stdin.on('end', () => {
       audit.authorization_matches = headers.get('authorization') ===
         (key.startsWith('Bearer ') ? key : 'Bearer ' + key);
       const body = JSON.parse(options.body);
+      const toolName = query.mode === 'flight' ? 'search_flight' : 'search_domestic_train';
       if (!audit.authorization_matches || body.method !== 'tools/call' ||
-          body.params?.name !== 'search_domestic_train' ||
+          body.params?.name !== toolName ||
           body.params?.arguments?.origin !== query.origin ||
           body.params?.arguments?.destination !== query.destination ||
           body.params?.arguments?.depDate !== query.date) {
@@ -60,7 +62,8 @@ process.stdin.on('end', () => {
       });
     };
     const bundle = path.resolve(__dirname, '../../../../../.tools/flyai/dist/flyai-bundle.cjs');
-    process.argv = [process.execPath, bundle, 'search-train', '--origin', query.origin,
+    const command = query.mode === 'flight' ? 'search-flight' : 'search-train';
+    process.argv = [process.execPath, bundle, command, '--origin', query.origin,
       '--destination', query.destination, '--dep-date', query.date];
     require(bundle);
   } catch {

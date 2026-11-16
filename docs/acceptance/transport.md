@@ -8,9 +8,25 @@
 >
 > 范围：已批准的 `SPEC-transport` v0.2、transport 任务 TRN-01 至 TRN-09，以及条件航班 Provider TLP-00 至 TLP-05。**mock/流程验收不代表真实航班、铁路或路线数据已经验收。**
 
+## 2026-11-16 市内路线恢复与线上状态核查
+
+- 恢复市内路线独立入口，支持公交/地铁、步行与驾车/出租车，按起终点保留工作区查询条件；路线以高德 Web Service 返回内容构成方案，并仅将用时标成规划参考，不显示费用。GCJ-02 路线几何不会冒充 WGS84 输出。
+- 使用服务端已有高德凭据注册路线 Provider；歧义地点、额度、权限及上游不可用分别显示安全状态，不用合成结果回填。单测使用 MockTransport，不请求真实高德服务。
+- 本机自动化验收：后端全量 `pytest` **453 passed**，Ruff 通过；前端 Vitest **157 passed**、源码及 E2E TypeScript、ESLint、Vite production build、Secretlint 通过；交通 Playwright 使用 2 个 worker 桌面与移动共 **10/10 passed**。首次 8 worker 运行因城市选择控件超时未通过，降低并发后全数通过。Playwright 使用合成响应，不调用外部交通服务。
+- 线上 `http://43.143.125.176:18080/api/transport/fares/search` 用合成合法请求分别核查航班和铁路，均返回 `unconfigured` 且无结果。HTTP 200 仅表示 API 正常返回，不表示供应商可用；目前无法据线上结果宣称航班或铁路查询已恢复。
+- 服务单元 `UnsetEnvironment=APP_TRANSPORT_FARE_PROVIDER` 当前明确禁用航班 Provider。代码现支持显式设置 `APP_TRANSPORT_FARE_PROVIDER=flyai`，复用已有 `FLYAI_API_KEY`，无需 Amadeus 凭据；也保留可选的 Amadeus 配置。FlyAI 航班尚无独立真实数据验收，不能据实现或合成测试宣称线上已恢复。铁路 Provider 的 FlyAI selector 与 key 已配置，但活动 release 缺少经 SHA-256 固定的官方 CLI bundle，Provider 因该运行产物缺失返回 `unconfigured`。
+- 本次本机实现与测试未更改服务器环境、密钥、认证登录门禁或公网部署设置；发布仍需独立部署及线上验收。
+
+## 2026-11-16 FlyAI 航班配置与空结果文案
+
+- `APP_TRANSPORT_FARE_PROVIDER=flyai` 启用 FlyAI 官方 `search-flight`；使用已有 `FLYAI_API_KEY`，不需要 Amadeus Client ID/Secret。选 `amadeus` 时仍要求原有完整凭据；空值保持关闭，不会自动切换 Provider。
+- 仅有效的成功响应且班次列表为空时，界面显示“当天没有该航班”。未配置、无覆盖、权限/额度限制、超时、上游错误或畸形响应都保留各自错误状态，不伪装成无航班。
+- 航班仍只展示班次及时刻，不展示价格或余量。真实 FlyAI 航班权限、覆盖、用途与生产数据尚未验收。
+- 后端全量 pytest **453 passed**，Ruff 通过；前端 Vitest **157 passed**、TypeScript、ESLint、Vite production build、Secretlint 通过；交通 Playwright 桌面与移动共 **10/10 passed**（2 workers）。
+
 ## 2026-11-16 班次查询界面验收
 
-本次前端范围收敛为航班／铁路班次查询。界面只显示班次与分段、出发/到达时刻、席别、来源及查询状态，不显示票价／金额、余票／可购信息、供应商自由文本或购票入口，也不提供市内路线查询。已有后端报价／路线契约未在本次删除。
+本次界面工作当时仅显示航班／铁路班次与分段、出发/到达时刻、席别、来源及查询状态，不显示票价／金额、余票／可购信息、供应商自由文本或购票入口。此前市内查询入口被移除，本次路线恢复验收见上节。
 
 - 起点、目的地及班次条件的输入框／选择框统一为 48px 高；桌面和移动宽度、窄屏无横向溢出。
 - 交通条件变化清除旧结果；迟到响应不能覆盖新查询；未配置时不回退合成结果。

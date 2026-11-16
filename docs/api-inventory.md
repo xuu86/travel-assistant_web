@@ -11,7 +11,7 @@
 | 酒店、活动场馆、景点 POI | 高德地图 Web 服务 | [地点搜索](https://restapi.amap.com/v5/place/text)；[官方说明](https://lbs.amap.com/api/webservice/guide/api/search) | `APP_AMAP_API_KEY`，服务端 `SecretStr` |
 | 城市中心地理编码 | 高德地图 Web 服务 | [地理编码](https://restapi.amap.com/v3/geocode/geo)；[官方说明](https://lbs.amap.com/api/webservice/guide/api/georegeo) | 与高德 POI 共用 Key |
 | 静态地图 | 高德地图 Web 服务 | [静态地图](https://restapi.amap.com/v3/staticmap)；[官方说明](https://lbs.amap.com/api/webservice/guide/api/staticmap) | 与高德 POI 共用 Key，后端代理图片 |
-| 航班报价 | Amadeus Self-Service APIs | [测试 Token](https://test.api.amadeus.com/v1/security/oauth2/token)、[测试航班报价](https://test.api.amadeus.com/v2/shopping/flight-offers)、[文档](https://developers.amadeus.com/self-service/category/flights/api-doc/flight-offers-search) | 需要 `APP_TRANSPORT_FARE_PROVIDER=amadeus` 和 Amadeus 凭证；当前真实航班数据未验收 |
+| 航班班次 | FlyAI 官方 CLI `search-flight`，或 Amadeus Self-Service APIs | [FlyAI](https://flyai.open.fliggy.com/)；[Amadeus 文档](https://developers.amadeus.com/self-service/category/flights/api-doc/flight-offers-search) | 选择 `APP_TRANSPORT_FARE_PROVIDER=flyai` 时复用 FlyAI API Key，无需 Amadeus 凭据；选择 `amadeus` 才需要 Amadeus 凭据。展示仅含班次/时刻，真实航班数据仍需独立验收 |
 | 铁路查询 | FlyAI 官方 CLI / Fliggy FlyAI | [官网](https://flyai.open.fliggy.com/)、[文档](https://flyai.open.fliggy.com/docs) | `APP_TRANSPORT_TRAIN_PROVIDER=flyai` 和后端 Key；已留一次真实查询记录，价格/余票未知 |
 | AI 助手 | OpenAI-compatible Chat Completions；当前本机配置指向 DeepSeek | [DeepSeek 平台](https://platform.deepseek.com/)、[API 文档](https://api-docs.deepseek.com/) | `APP_MODEL_BASE_URL`、`APP_MODEL_NAME`、`APP_MODEL_API_KEY`；需按供应商条款单独验收 |
 

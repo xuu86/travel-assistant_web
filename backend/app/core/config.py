@@ -11,7 +11,7 @@ from app.core.contracts import ContractModel, ResultState
 
 EnvironmentName = Literal["development", "test", "production"]
 WeatherProviderName = Literal["open_meteo"]
-TransportFareProviderName = Literal["amadeus"]
+TransportFareProviderName = Literal["amadeus", "flyai"]
 AmadeusEnvironmentName = Literal["test", "production"]
 
 
@@ -73,16 +73,12 @@ class Settings(BaseSettings):
     )
     transport_flyai_node_path: str = Field(default="node", min_length=1, max_length=1024)
     transport_flyai_timeout_seconds: float = Field(default=45, ge=1, le=45)
-    transport_flyai_max_response_bytes: int = Field(
-        default=1024 * 1024, ge=1024, le=1024 * 1024
-    )
+    transport_flyai_max_response_bytes: int = Field(default=1024 * 1024, ge=1024, le=1024 * 1024)
     transport_amadeus_env: AmadeusEnvironmentName = "test"
     transport_amadeus_client_id: SecretStr | None = None
     transport_amadeus_client_secret: SecretStr | None = None
     transport_amadeus_timeout_seconds: float = Field(default=8, ge=1, le=30)
-    transport_amadeus_max_response_bytes: int = Field(
-        default=256 * 1024, ge=1024, le=1024 * 1024
-    )
+    transport_amadeus_max_response_bytes: int = Field(default=256 * 1024, ge=1024, le=1024 * 1024)
 
     @field_validator(
         "weather_provider", "transport_fare_provider", "transport_train_provider", mode="before"
@@ -165,6 +161,14 @@ class Settings(BaseSettings):
             and self.transport_amadeus_client_id.get_secret_value().strip()
             and self.transport_amadeus_client_secret
             and self.transport_amadeus_client_secret.get_secret_value().strip()
+        )
+
+    @property
+    def transport_flyai_flight_configured(self) -> bool:
+        return bool(
+            self.transport_fare_provider == "flyai"
+            and self.transport_flyai_api_key
+            and self.transport_flyai_api_key.get_secret_value().strip()
         )
 
     @field_validator("allowed_origins", mode="before")

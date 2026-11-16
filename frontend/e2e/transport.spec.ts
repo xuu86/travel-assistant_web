@@ -91,9 +91,9 @@ test("transport starts without a request and keeps synthetic rail details explic
 
   await enterTransport(page);
   expect(fareCalls).toBe(0);
-  await expect(page.getByText("交通服务尚未配置", { exact: true })).toBeVisible();
+  await expect(page.getByText(/提交查询后显示班次与来源/)).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "市内路线" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "市内路线" })).toBeVisible();
   const primaryFields = [
     page.getByLabel(/交通方式/),
     page.getByLabel(/目标出行日期/),
@@ -133,6 +133,50 @@ test("transport starts without a request and keeps synthetic rail details explic
   expect(fareCalls).toBe(2);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: testInfo.outputPath("railway-results.png"), fullPage: true });
+});
+
+test("city route mode shows sourced guidance without displaying a fare", async ({ page }, testInfo) => {
+  let routeCalls = 0;
+  await page.route("**/api/transport/routes/search", async (route) => {
+    routeCalls += 1;
+    const request = route.request().postDataJSON() as { mode: string };
+    expect(request.mode).toBe("transit");
+    await route.fulfill({
+      status: 200,
+      json: {
+        state: "partial", request_id: "city-route-e2e", queried_at: "2026-11-16T00:00:00Z",
+        message: "路线为规划参考。", coverage: null, error: null,
+        sources: [{
+          source_id: "amap.directions", display_name: "高德地图路线规划",
+          retrieved_at: "2026-11-16T00:00:00Z", evidence_state: "estimate",
+          attribution: "路线及用时为规划参考，不提供费用。",
+        }],
+        items: [{
+          route_id: "city-route-1", source_id: "amap.directions", mode: "transit",
+          origin_name: "杭州市杭州东站", destination_name: "杭州市西湖", distance_m: 3200,
+          duration_seconds: 1800, duration_basis: "typical_estimate", fare_amount_fen: 860,
+          fare_basis: "per_route", fare_evidence_state: "verified", evidence_state: "estimate",
+          missing_fields: ["geometry_points"], geometry_points: null,
+          steps: [{ instruction: "乘坐地铁测试线", step_mode: "subway", coordinate_system: "WGS84" }],
+        }],
+      },
+    });
+  });
+
+  await enterTransport(page);
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.setViewportSize({ width: 375, height: 812 });
+  }
+  await page.getByRole("button", { name: "市内路线" }).click();
+  await fillPlaces(page, "杭州市杭州东站", "杭州市西湖");
+  await page.getByRole("button", { name: "查询市内路线" }).click();
+  await expect(page.getByText("乘坐地铁测试线")).toBeVisible();
+  await expect(page.getByText("3.2 公里")).toBeVisible();
+  await expect(page.getByText("30 分钟")).toBeVisible();
+  await expect(page.getByText("高德地图路线规划")).toBeAttached();
+  await expect(page.locator(".transport-results").getByText(/票价|费用项目|¥|0\.86/)).toHaveCount(0);
+  expect(routeCalls).toBe(1);
+  await expectNoHorizontalOverflow(page);
 });
 
 const flightFare = {
@@ -198,13 +242,31 @@ test("flight query defaults to nearest airports and renders only schedule detail
   await expect(scheduleResults).toContainText("MU1234");
   await expect(scheduleResults).not.toContainText(/票价|费用项目|¥355\.34/);
   expect(fareRequest).toMatchObject({
-    origin: { display_name: "上海虹桥", place_id: "SHA", coordinate_system: "WGS84" },
-    destination: { display_name: "杭州萧山", place_id: "HGH", coordinate_system: "WGS84" },
+    origin: { display_name: "上海虹桥国际机场", place_id: "SHA", coordinate_system: "WGS84" },
+    destination: { display_name: "杭州萧山国际机场", place_id: "HGH", coordinate_system: "WGS84" },
     mode: "flight",
     travel_date: "2026-11-10",
     passenger_count: 2,
   });
   await expectNoHorizontalOverflow(page);
+});
+
+test("a successful empty flight search says there is no flight that day", async ({ page }) => {
+  await page.route("**/api/transport/fares/search", async (route) => {
+    await route.fulfill({ status: 200, json: {
+      state: "empty", items: [],
+      sources: [{ ...source[0], source_id: "flyai.search-flight", evidence_state: "verified" }],
+      queried_at: "2026-11-16T00:00:00Z", request_id: "flight-empty",
+      message: "当天没有该航班", coverage: null, error: null,
+    } });
+  });
+
+  await enterTransport(page);
+  await fillPlaces(page, "上海虹桥", "杭州萧山");
+  await page.getByLabel(/目标出行日期/).fill("2026-11-10");
+  await page.getByRole("button", { name: "查询班次" }).click();
+  await expect(page.getByText("当天没有该航班", { exact: true })).toBeVisible();
+  await expect(page.getByRole("article")).toHaveCount(0);
 });
 test("changing fare conditions clears prior data and a slow response cannot overwrite the new query", async ({ page }, testInfo) => {
   let firstRequestStarted: (() => void) | undefined;

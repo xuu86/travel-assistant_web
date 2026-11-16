@@ -8,10 +8,13 @@ import type { LedgerObservation, LedgerScanStatus } from "../unknown-ledger/mode
 import { AIRPORTS, airportDistanceKm, nearestAirport, placeCoordinates } from "./airports";
 import {
   fetchTransportFares,
+  fetchTransportRoute,
   TransportApiError,
   type FareQuery,
   type FareResponse,
   type PlaceRef,
+  type RouteQuery,
+  type RouteResponse,
 } from "./api";
 import "./transport-panel.css";
 
@@ -137,7 +140,7 @@ function ResultNotice<T extends {
     </p>;
   }
   if (state.status === "idle") {
-    return <p className="transport-empty-note">提交查询后显示班次与来源；未配置数据源时不会用测试结果或旧结果填补。</p>;
+    return <p className="transport-empty-note">提交查询后显示{kind}与来源；未配置数据源时不会用测试结果或旧结果填补。</p>;
   }
   if (state.status === "loading") {
     return <p className="transport-result-note" role="status" aria-live="polite">正在查询{kind}…</p>;
@@ -225,6 +228,32 @@ function ScheduleCards({ data }: { data: FareResponse }) {
   );
 }
 
+function RouteCards({ data }: { data: RouteResponse }) {
+  return <div className="transport-results" aria-label="市内路线结果">
+    {(data.items ?? []).map((route, index) => <article className="transport-result-card" key={route.route_id}>
+      <div className="transport-result-card__topline">
+        <span className="transport-result-card__eyebrow">方案 {index + 1}</span>
+        <span className={`transport-evidence transport-evidence--${route.evidence_state}`}>{EVIDENCE_LABELS[route.evidence_state]}</span>
+      </div>
+      <h4 className="transport-result-card__route">{route.origin_name} <span aria-hidden="true">→</span> {route.destination_name}</h4>
+      <div className="transport-schedule-grid">
+        <div><span className="transport-data-label">路线距离</span><strong>{route.distance_m == null ? "距离待核实" : `${(route.distance_m / 1000).toFixed(1)} 公里`}</strong></div>
+        <div><span className="transport-data-label">参考用时</span><strong>{route.duration_seconds == null ? "用时待核实" : `${Math.ceil(route.duration_seconds / 60)} 分钟`}</strong><small>规划参考，非实时到站或保证到达时间。</small></div>
+      </div>
+      <div className="transport-segments">
+        <span className="transport-data-label">路线步骤（按来源顺序）</span>
+        {route.steps?.length ? <ol>{route.steps.map((step, stepIndex) => <li key={stepIndex}>
+          <div><strong>{step.instruction ?? "具体指引待核实"}</strong>
+            <small>{step.distance_m == null ? "分段距离待核实" : `${step.distance_m} 米`}</small></div>
+        </li>)}</ol> : <p>路线步骤待核实</p>}
+      </div>
+      {(data.sources ?? []).filter((source) => source.source_id === route.source_id).map((source) => <div className="transport-source" key={source.source_id}>
+        <EvidencePassport source={source} coverage={data.coverage} subject="市内路线" />
+      </div>)}
+    </article>)}
+  </div>;
+}
+
 export function TransportPanel({
   initialDestination,
   initialOrigin = EMPTY_PLACE,
@@ -247,7 +276,12 @@ export function TransportPanel({
   const [adultCount, setAdultCount] = usePersistentState("transport.adult-count", "1");
   const [childCount, setChildCount] = usePersistentState("transport.child-count", "");
   const [fareFormError, setFareFormError] = useState<string | null>(null);
-  const [fareState, setFareState] = useState<QueryState<FareResponse>>({ status: "unconfigured" });
+  const [fareState, setFareState] = useState<QueryState<FareResponse>>({ status: "idle" });
+  const [queryKind, setQueryKind] = usePersistentState<"schedule" | "city">("transport.query-kind", "schedule");
+  const [routeMode, setRouteMode] = usePersistentState<RouteQuery["mode"]>("transport.route-mode", "transit");
+  const [routeState, setRouteState] = useState<QueryState<RouteResponse>>({ status: "idle" });
+  const [routeFormError, setRouteFormError] = useState<string | null>(null);
+  const routeSequence = useRef(0);
   const ledgerObservations = useMemo<LedgerObservation[]>(() => {
     if (fareState.status !== "result" || fareState.data.state === "demo") return [];
     return (fareState.data.items ?? []).flatMap((offer) => offer.segments.flatMap((segment) => {
@@ -306,10 +340,14 @@ export function TransportPanel({
 
   function clearResults() {
     clearFareResults();
+    routeSequence.current += 1;
+    setRouteState({ status: "idle" });
+    setRouteFormError(null);
   }
 
   useEffect(() => () => {
     fareSequence.current += 1;
+    routeSequence.current += 1;
   }, []);
 
   function validLocations(setError: (message: string) => void): boolean {
@@ -369,9 +407,17 @@ export function TransportPanel({
         return;
       }
       if (totalPassengers > 9) {
-        setFareFormError("Amadeus 航班查询的成人加儿童总数不能超过 9 人。");
+        setFareFormError("航班查询的成人加儿童总数不能超过 9 人。");
         return;
       }
+      const selectedOriginAirport = AIRPORTS.find((airport) => airport.iata === originAirportCode);
+      const selectedDestinationAirport = AIRPORTS.find((airport) => airport.iata === destinationAirportCode);
+      if (!selectedOriginAirport || !selectedDestinationAirport) {
+        setFareFormError("所选机场信息无效，请重新选择机场。");
+        return;
+      }
+      originPlace.display_name = selectedOriginAirport.name;
+      destinationPlace.display_name = selectedDestinationAirport.name;
       originPlace.place_id = originAirportCode;
       destinationPlace.place_id = destinationAirportCode;
     }
@@ -397,15 +443,37 @@ export function TransportPanel({
     }
   }
 
+  async function handleRouteSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const sequence = ++routeSequence.current;
+    setRouteState({ status: "idle" });
+    setRouteFormError(null);
+    if (!validLocations(setRouteFormError)) return;
+    if (origin.display_name.trim() === destination.trim()) {
+      setRouteFormError("起点与目的地不能相同。");
+      return;
+    }
+    setRouteState({ status: "loading" });
+    try {
+      const data = await fetchTransportRoute({
+        origin: buildPlace(origin.display_name, origin), destination: buildPlace(destination),
+        mode: routeMode,
+      });
+      if (routeSequence.current === sequence) setRouteState({ status: "result", data });
+    } catch (error) {
+      if (routeSequence.current === sequence) setRouteState({ status: "error", error: safeTransportError(error) });
+    }
+  }
+
   return (
     <section className="transport-panel" aria-labelledby="transport-title">
       <div className="transport-panel__heading">
         <div>
           <p className="transport-panel__eyebrow">TRANSPORT / 03</p>
           <h1 id="transport-title">交通查询</h1>
-          <p>查询航班与铁路班次，结果仅展示班次和出发、到达时刻。</p>
+          <p>查询航班、铁路班次，或规划市内公交、步行与驾车路线。</p>
         </div>
-        <span className="transport-panel__stamp">班次 · 时刻 · 来源</span>
+        <span className="transport-panel__stamp">{queryKind === "city" ? "路线 · 距离 · 用时 · 来源" : "班次 · 时刻 · 来源"}</span>
       </div>
 
       <section className="transport-guide" aria-labelledby="transport-guide-title">
@@ -415,12 +483,16 @@ export function TransportPanel({
           <p>按出发地、目的地和日期查询班次；未返回的信息会标为待核实。</p>
         </div>
         <ul>
-          <li><strong>查询范围</strong><span>支持航班与铁路班次查询。</span></li>
-          <li><strong>结果内容</strong><span>仅展示班次、时刻、席别和数据来源。</span></li>
+          <li><strong>查询范围</strong><span>航班、铁路与市内路线独立查询。</span></li>
+          <li><strong>结果内容</strong><span>班次时刻或路线步骤、距离、参考用时与来源。</span></li>
           <li><strong>服务状态</strong><span>未配置时不会展示测试班次。</span></li>
         </ul>
       </section>
 
+      <div className="transport-query-switch" role="group" aria-label="交通查询类型">
+        <button type="button" aria-pressed={queryKind === "schedule"} onClick={() => { clearResults(); setQueryKind("schedule"); }}>航班 / 铁路班次</button>
+        <button type="button" aria-pressed={queryKind === "city"} onClick={() => { clearResults(); setQueryKind("city"); }}>市内路线</button>
+      </div>
       <div className="transport-query-card">
         <PlaceFields
           origin={origin.display_name}
@@ -448,7 +520,20 @@ export function TransportPanel({
           }}
         />
 
-        <form className="transport-search-form" onSubmit={handleFareSubmit} noValidate>
+        {queryKind === "city" ? <form className="transport-search-form" onSubmit={handleRouteSubmit} noValidate>
+          <div className="transport-search-form__fields">
+            <label className="transport-field"><span className="transport-field__label">市内交通方式</span>
+              <select value={routeMode} onChange={(event) => { clearResults(); setRouteMode(event.target.value as RouteQuery["mode"]); }}>
+                <option value="transit">公交 / 地铁</option><option value="walking">步行</option><option value="taxi">驾车 / 出租车</option>
+              </select>
+            </label>
+          </div>
+          <div className="transport-search-form__footer">
+            <span className="transport-field__hint">请填写带城市的具体地点，如“杭州市西湖”。用时仅作规划参考。</span>
+            <button type="submit" className="transport-primary-button" disabled={routeState.status === "loading"}>{routeState.status === "loading" ? "正在查询…" : "查询市内路线"}</button>
+          </div>
+          {routeFormError && <p className="transport-form-error" role="alert">{routeFormError}</p>}
+        </form> : <form className="transport-search-form" onSubmit={handleFareSubmit} noValidate>
           <div className="transport-search-form__fields">
               <label className="transport-field">
                 <span className="transport-field__label">交通方式</span>
@@ -533,16 +618,21 @@ export function TransportPanel({
             </button>
           </div>
           {fareFormError && <p className="transport-form-error" role="alert">{fareFormError}</p>}
-        </form>
+        </form>}
       </div>
 
       <div className="transport-query-results">
         <div className="transport-results-heading">
-          <h3>班次结果</h3>
-          <span>单程班次</span>
+          <h3>{queryKind === "city" ? "市内路线结果" : "班次结果"}</h3>
+          <span>{queryKind === "city" ? "规划参考" : "单程班次"}</span>
         </div>
-        <ResultNotice state={fareState} kind="班次" />
-        {fareState.status === "result" && <ScheduleCards data={fareState.data} />}
+        {queryKind === "city" ? <>
+          <ResultNotice state={routeState} kind="市内路线" />
+          {routeState.status === "result" && <RouteCards data={routeState.data} />}
+        </> : <>
+          <ResultNotice state={fareState} kind="班次" />
+          {fareState.status === "result" && <ScheduleCards data={fareState.data} />}
+        </>}
       </div>
     </section>
   );

@@ -3,22 +3,24 @@
 > 版本：v0.2｜状态：已批准｜原批准：2026-10-29｜执行口径更新：2026-10-30（北京时间）
 > 本规格扩展已批准的 [SPEC-transport](SPEC-transport.md)，不替代该规格。官方 API 优先；网页抓取不是实施前提。代码接入、真实供应商调用和真实数据验收是三个不同结论，不得互相替代。
 
+> 2026-11-16 更新：用户批准航班通过 `APP_TRANSPORT_FARE_PROVIDER=flyai` 选择官方 FlyAI `search-flight` CLI Provider，复用 `APP_TRANSPORT_FLYAI_API_KEY`，不要求 Amadeus 凭据。`amadeus` 仍为可选值，选择时原有完整凭据门槛不变。有效的 FlyAI 成功空结果显示“当天没有该航班”；上游错误不得映射成无航班。价格和余量仍不展示。代码扩展不代表供应商用途、配额或生产数据 Gate 已验收。
+
 ## 1. 目标与范围
 
 在现有 `FareProvider` 边界内，以服务端显式配置接入可审计的官方交通数据 Provider，并把结果保守映射到现有 `FareResult` / `FareOffer` 契约。
 
-当前获批的首个条件方案是 **Amadeus Flight Offers Search**：只查询单程航班，只接受三字 IATA 机场代码，只展示供应商返回的班次、报价与可售座位信息。`baizhexue/fly-flight` 仅用于理解航班/铁路查询能力边界；本项目不复制其代码，不安装或执行其 OpenClaw skill，也不依赖其对同程页面或 12306 内部接口的抓取实现。
+航班支持两种明确配置的 Provider：Amadeus Flight Offers Search（完整凭据门槛）和 FlyAI 官方 `search-flight` CLI（使用现有 FlyAI API Key）。界面只展示航班班次和时刻，不显示价格或余量。
 
 范围边界：
 
-- 航班：Amadeus 官方 API adapter，条件启用；默认关闭。
+- 航班：Amadeus 或 FlyAI 官方 Provider，显式配置后启用；默认关闭。
 - 铁路 / 高铁：未接入。必须使用具有正式授权和稳定契约的独立 Railway Provider；12306 网页或内部接口不作为生产来源。
 - 公交、地铁、步行、出租车 / 驾车：未接入。`/api/transport/routes/search` 维持现状，不伪称已有真实路线能力。
 - 查询只读；不预订、不支付、不锁价、不锁位、不跳转售票网站。
 
 ## 2. 配置与数据契约
 
-- `APP_TRANSPORT_FARE_PROVIDER` 只允许 `amadeus` 或空值，默认空值。只有 provider、Client ID、Client Secret 三项均显式配置时才构造航班 Provider；否则返回 `unconfigured`，不允许 `auto`、网页 fallback、fixture fallback 或静默切换来源。
+- `APP_TRANSPORT_FARE_PROVIDER` 只允许 `amadeus`、`flyai` 或空值，默认空值。选择 `amadeus` 时需 Client ID 与 Client Secret；选择 `flyai` 时需已配置的 FlyAI API Key，但无需 Amadeus 凭据。未选择或配置缺失时返回 `unconfigured`，不允许自动切换、网页 fallback 或 fixture fallback。
 - `APP_TRANSPORT_AMADEUS_ENV` 只允许 `test` / `production`，分别固定到以下官方 HTTPS 主机：
   - `test.api.amadeus.com`
   - `api.amadeus.com`

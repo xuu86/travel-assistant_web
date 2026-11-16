@@ -121,7 +121,8 @@ def test_concurrency_limit_rejects_without_launching(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("mode", ["valid", "wrong-host", "wrong-key", "retry", "oversized"])
-def test_node_guard_enforces_network_boundary_with_fake_cli(mode, tmp_path):
+@pytest.mark.parametrize("transport_mode", ["rail", "flight"])
+def test_node_guard_enforces_network_boundary_with_fake_cli(mode, transport_mode, tmp_path):
     folder = tmp_path / "backend/app/modules/transport/providers"
     folder.mkdir(parents=True)
     guard = folder / "flyai_runner.cjs"
@@ -134,7 +135,7 @@ def test_node_guard_enforces_network_boundary_with_fake_cli(mode, tmp_path):
 const url=mode==='wrong-host'?'https://invalid.test/mcp':'https://flyai.open.fliggy.com/mcp';
 const authKey=mode==='wrong-key'?'bad':process.env.FLYAI_API_KEY;
 const options={method:'POST',headers:{Authorization:'Bearer '+authKey},
-body:JSON.stringify({method:'tools/call',params:{name:'search_domestic_train',arguments:{origin:'上海',destination:'杭州',depDate:'2026-11-01'}}})};
+body:JSON.stringify({method:'tools/call',params:{name:process.argv[2]==='search-flight'?'search_flight':'search_domestic_train',arguments:{origin:'上海',destination:'杭州',depDate:'2026-11-01'}}})};
 (async()=>{try {
  const result=await fetch(url,options);
  if(mode==='retry') await fetch(url,options);
@@ -149,7 +150,9 @@ body:JSON.stringify({method:'tools/call',params:{name:'search_domestic_train',ar
 };""")
     result = subprocess.run(
         [NODE, "--require", str(preload), str(guard)],
-        input=json.dumps({"origin": "上海", "destination": "杭州", "date": "2026-11-01"}).encode(),
+        input=json.dumps(
+            {"mode": transport_mode, "origin": "上海", "destination": "杭州", "date": "2026-11-01"}
+        ).encode(),
         capture_output=True,
         timeout=5,
         env={

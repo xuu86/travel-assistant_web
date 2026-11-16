@@ -13,9 +13,13 @@ from app.modules.transport.contracts import FareQuery, validate_fare_booking_url
 from app.modules.transport.providers.base import TransportProviderError
 from app.modules.transport.providers.flyai import (
     CliOutput,
+    FlyAIFlightFareProvider,
     FlyAITrainFareProvider,
+    map_flight_result,
     map_train_result,
 )
+from app.modules.transport.runtime import create_transport_service
+from app.modules.transport.service import TransportService
 
 NOW = datetime(2026, 10, 31, tzinfo=UTC)
 KEY = "synthetic-flyai-key-never-log"
@@ -33,6 +37,53 @@ def query(**updates):
             **updates,
         }
     )
+
+
+def flight_query(**updates):
+    return FareQuery.model_validate(
+        {
+            "origin": {"display_name": "上海虹桥国际机场", "place_id": "SHA"},
+            "destination": {"display_name": "杭州萧山国际机场", "place_id": "HGH"},
+            "mode": "flight",
+            "travel_date": "2026-11-01",
+            "passenger_count": 2,
+            **updates,
+        }
+    )
+
+
+def flight_payload():
+    return {
+        "status": 0,
+        "data": {
+            "itemList": [
+                {
+                    "journeys": [
+                        {
+                            "segments": [
+                                {
+                                    "transportType": "飞机",
+                                    "depCityName": "上海",
+                                    "depStationName": "上海虹桥国际机场",
+                                    "depStationCode": "SHA",
+                                    "arrCityName": "杭州",
+                                    "arrStationName": "杭州萧山国际机场",
+                                    "arrStationCode": "HGH",
+                                    "depDateTime": "2026-11-01 08:00:00",
+                                    "arrDateTime": "2026-11-01 09:00:00",
+                                    "marketingTransportNo": "MU-TEST",
+                                    "marketingTransportName": "测试航空",
+                                    "seatClassName": "经济舱",
+                                }
+                            ]
+                        }
+                    ],
+                    "adultPrice": "¥999",
+                    "jumpUrl": "https://www.fliggy.com/flight?fixture=1",
+                }
+            ]
+        },
+    }
 
 
 def payload():
@@ -88,6 +139,15 @@ def provider(executor, key=KEY):
 def mapped(body=None):
     return map_train_result(
         payload() if body is None else body, query(), request_id=uuid4(), now=NOW
+    )
+
+
+def mapped_flight(body=None):
+    return map_flight_result(
+        flight_payload() if body is None else body,
+        flight_query(),
+        request_id=uuid4(),
+        now=NOW,
     )
 
 
@@ -177,6 +237,86 @@ def test_empty_results_and_platform_hint():
     result = mapped({"status": 0, "data": {"itemList": []}, "systemMessage": "<b>平台提示</b>"})
     assert result.state == "empty" and result.items == []
     assert result.platform_hint == "<b>平台提示</b>"
+
+
+def test_flight_mapping_preserves_schedule_and_never_maps_price():
+    result = mapped_flight()
+    assert result.state == "partial"
+    offer = result.items[0]
+    assert offer.mode == "flight"
+    assert offer.service_number == "MU-TEST"
+    assert offer.departure_at == datetime(2026, 11, 1, 0, tzinfo=UTC)
+    assert offer.arrival_at == datetime(2026, 11, 1, 1, tzinfo=UTC)
+    assert offer.departure_timezone == offer.arrival_timezone == "Asia/Shanghai"
+    assert offer.segments[0].operating_carrier == "测试航空"
+    assert offer.price_fen is None and offer.price_basis == "unknown"
+    assert "price_fen" in offer.missing_fields
+    assert offer.source_id == result.sources[0].source_id == "flyai.search-flight"
+
+
+def test_flight_successful_empty_result_is_distinct_from_errors():
+    result = mapped_flight({"status": 0, "data": {"itemList": []}})
+    assert result.state == "empty"
+    assert result.items == []
+
+
+def test_flight_empty_message_only_appears_after_valid_successful_empty_response():
+    executor = Executor({"status": 0, "data": {"itemList": []}})
+    provider = FlyAIFlightFareProvider(
+        api_key=SecretStr(KEY),
+        executor=executor,
+        now=lambda: NOW,
+    )
+    result = TransportService(fare_provider=provider, now=lambda: NOW).search_fares(
+        flight_query(),
+        request_id=uuid4(),
+    )
+    assert result.state == "empty"
+    assert result.message == "当天没有该航班"
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("depStationCode", "PEK"),
+        ("depDateTime", "2026-11-02 08:00:00"),
+        ("transportType", "火车"),
+    ],
+)
+def test_flight_unmatched_or_wrong_data_is_not_reported_as_no_flight(field, value):
+    body = flight_payload()
+    body["data"]["itemList"][0]["journeys"][0]["segments"][0][field] = value
+    executor = Executor(body)
+    with pytest.raises(TransportProviderError) as exc:
+        FlyAIFlightFareProvider(
+            api_key=SecretStr(KEY), executor=executor, now=lambda: NOW
+        ).search_fares(
+            flight_query(),
+            request_id=uuid4(),
+        )
+    assert exc.value.status == "unavailable"
+
+
+def test_flight_provider_uses_configured_flyai_without_amadeus():
+    executor = Executor(flight_payload())
+    result = FlyAIFlightFareProvider(
+        api_key=SecretStr(KEY),
+        executor=executor,
+        now=lambda: NOW,
+    ).search_fares(flight_query(), request_id=uuid4())
+    assert result.state == "partial"
+    assert executor.calls[0][0].mode == "flight"
+
+
+def test_runtime_registers_flyai_flights_without_amadeus_credentials():
+    settings = Settings(
+        _env_file=None,
+        transport_fare_provider="flyai",
+        transport_flyai_api_key=KEY,
+    )
+    service = create_transport_service(settings, flyai_executor=Executor(flight_payload()))
+    assert service.fare_provider is not None
+    assert set(service.fare_provider.providers) == {"flight"}
 
 
 @pytest.mark.parametrize(

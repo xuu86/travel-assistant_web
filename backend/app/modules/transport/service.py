@@ -81,30 +81,25 @@ class TransportService:
 
     def search_fares(self, query: FareQuery, *, request_id: UUID) -> FareResult:
         if self.fare_provider is None:
-            return self._failure_result(
-                FareResult, status="unconfigured", request_id=request_id
-            )
+            return self._failure_result(FareResult, status="unconfigured", request_id=request_id)
         try:
             provider_result = self.fare_provider.search_fares(query, request_id=request_id)
             if not isinstance(provider_result, FareResult):
                 raise ValueError("Invalid fare provider result type.")
             self._validate_fare_query_match(provider_result, query)
-            return self._normalize_result(provider_result, request_id=request_id)
+            normalized = self._normalize_result(provider_result, request_id=request_id)
+            if query.mode == "flight" and normalized.state is ResultState.EMPTY:
+                return normalized.model_copy(update={"message": "当天没有该航班"})
+            return normalized
         except TransportProviderError as exc:
-            return self._failure_result(
-                FareResult, status=exc.status, request_id=request_id
-            )
+            return self._failure_result(FareResult, status=exc.status, request_id=request_id)
         except Exception as exc:
             _log_provider_failure("fares", request_id, exc)
-            return self._failure_result(
-                FareResult, status="unavailable", request_id=request_id
-            )
+            return self._failure_result(FareResult, status="unavailable", request_id=request_id)
 
     def search_route(self, query: RouteQuery, *, request_id: UUID) -> RouteResult:
         if self.route_provider is None:
-            return self._failure_result(
-                RouteResult, status="unconfigured", request_id=request_id
-            )
+            return self._failure_result(RouteResult, status="unconfigured", request_id=request_id)
         try:
             provider_result = self.route_provider.search_route(query, request_id=request_id)
             if not isinstance(provider_result, RouteResult):
@@ -112,14 +107,10 @@ class TransportService:
             self._validate_route_query_match(provider_result, query)
             return self._normalize_result(provider_result, request_id=request_id)
         except TransportProviderError as exc:
-            return self._failure_result(
-                RouteResult, status=exc.status, request_id=request_id
-            )
+            return self._failure_result(RouteResult, status=exc.status, request_id=request_id)
         except Exception as exc:
             _log_provider_failure("route", request_id, exc)
-            return self._failure_result(
-                RouteResult, status="unavailable", request_id=request_id
-            )
+            return self._failure_result(RouteResult, status="unavailable", request_id=request_id)
 
     @staticmethod
     def _validate_fare_query_match(result: FareResult, query: FareQuery) -> None:

@@ -39,6 +39,8 @@ APP_TRANSPORT_FLYAI_TIMEOUT_SECONDS=45
 APP_TRANSPORT_FLYAI_MAX_RESPONSE_BYTES=1048576
 ```
 
+如需启用航班查询，在相同配置中另外设置 `APP_TRANSPORT_FARE_PROVIDER=flyai`。该模式使用相同 FlyAI API Key，不需要 Amadeus Client ID 或 Client Secret；留空则航班 Provider 继续返回未配置。
+
 也支持 `APP_TRANSPORT_FLYAI_API_KEY`，与 `FLYAI_API_KEY` 同时存在时优先使用前者。若 Node 不在后端 PATH，填写其绝对路径。然后从 backend 目录重启 FastAPI 服务：
 
 ```powershell

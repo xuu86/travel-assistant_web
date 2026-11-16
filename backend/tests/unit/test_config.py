@@ -181,6 +181,18 @@ def test_transport_amadeus_requires_provider_and_both_credentials() -> None:
     assert "fixture-client-secret" not in configured.model_dump_json()
 
 
+def test_flyai_flight_provider_configures_without_amadeus_credentials() -> None:
+    settings = Settings(
+        _env_file=None,
+        transport_fare_provider="flyai",
+        transport_flyai_api_key="fixture-flyai-key",
+    )
+
+    assert settings.transport_flyai_flight_configured is True
+    assert settings.transport_amadeus_client_id is None
+    assert settings.transport_amadeus_client_secret is None
+
+
 def test_unknown_transport_fare_provider_is_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, transport_fare_provider="unknown")

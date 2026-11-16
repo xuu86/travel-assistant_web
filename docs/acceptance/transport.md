@@ -15,7 +15,9 @@
 - 本机自动化验收：后端全量 `pytest` **453 passed**，Ruff 通过；前端 Vitest **157 passed**、源码及 E2E TypeScript、ESLint、Vite production build、Secretlint 通过；交通 Playwright 使用 2 个 worker 桌面与移动共 **10/10 passed**。首次 8 worker 运行因城市选择控件超时未通过，降低并发后全数通过。Playwright 使用合成响应，不调用外部交通服务。
 - 线上 `http://43.143.125.176:18080/api/transport/fares/search` 用合成合法请求分别核查航班和铁路，均返回 `unconfigured` 且无结果。HTTP 200 仅表示 API 正常返回，不表示供应商可用；目前无法据线上结果宣称航班或铁路查询已恢复。
 - 服务单元 `UnsetEnvironment=APP_TRANSPORT_FARE_PROVIDER` 当前明确禁用航班 Provider。代码现支持显式设置 `APP_TRANSPORT_FARE_PROVIDER=flyai`，复用已有 `FLYAI_API_KEY`，无需 Amadeus 凭据；也保留可选的 Amadeus 配置。FlyAI 航班尚无独立真实数据验收，不能据实现或合成测试宣称线上已恢复。铁路 Provider 的 FlyAI selector 与 key 已配置，但活动 release 缺少经 SHA-256 固定的官方 CLI bundle，Provider 因该运行产物缺失返回 `unconfigured`。
-- 本次本机实现与测试未更改服务器环境、密钥、认证登录门禁或公网部署设置；发布仍需独立部署及线上验收。
+- 已将提交 `69718d8` 推送到 `feature/itinerary-checkup` 并部署到现有服务器。后端 release 源码位于原服务工作目录 `/opt/travel-assistant/releases/github-1270898/backend`；前端资源更新到 Caddy bind mount 源 `/opt/travel-assistant/app/frontend/dist`。后端服务重启后 active，`/api/health` 返回 HTTP 200；公网首页 HTTP 200，JS `index-B0vbVrDq.js` SHA-256 `1ffd9d028356badeef7efa3f8c87c37ccac10b33aaf9ed53cfd79ee575987e02`、CSS `index-DR7p2Nm0.css` SHA-256 `30c689abe04069f51ecca3bde5e139843d41df77715b2362222335c97fecf1d3` 与本地构建一致。
+- 官方 FlyAI CLI bundle 已部署，SHA-256 为 `194a66eb84094f3d8ee20fac0a2d6cae10a405cd59ac100b7e7880ebc97297da`。旧后端 release 保存在 `/opt/travel-assistant/backups/backend-before-69718d8`；旧前端静态文件备份为 `/opt/travel-assistant/backups/frontend-dist-before-69718d8.tar.gz`（SHA-256 `577929f9c213a3672c41324420b019b1e3fe4d9ee5a0f02b5db783dc2c300cd8`）。
+- 服务的 `UnsetEnvironment=APP_TRANSPORT_FARE_PROVIDER` 保持不变，故线上航班 Provider 仍关闭；启用时可选择 `flyai` 并复用既有 FlyAI Key，不需要 Amadeus 凭据。没有更改服务器密钥、认证登录门禁或 Caddy 配置；没有执行真实 FlyAI 航班或高德路线查询。
 
 ## 2026-11-16 FlyAI 航班配置与空结果文案
 

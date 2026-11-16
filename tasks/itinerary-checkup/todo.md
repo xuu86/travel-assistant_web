@@ -1,6 +1,6 @@
 # itinerary-checkup 任务清单
 
-> 版本：v0.1｜状态：已实施并完成本地验收，待独立同步 GitHub/服务器｜依据：[SPEC-itinerary-checkup](../../docs/SPEC-itinerary-checkup.md)、[实施计划](plan.md)。L2 已完成验收并发布后才开始本模块编码。
+> 版本：v0.1｜状态：已实施、验收并同步 GitHub/服务器｜依据：[SPEC-itinerary-checkup](../../docs/SPEC-itinerary-checkup.md)、[实施计划](plan.md)。L2 已完成验收并发布后才开始本模块编码。
 
 ## 固定规则
 
@@ -49,10 +49,10 @@
 
 ### IC-06 — 全回归、验收留证并逐模块发布
 
-- [ ] **验收：** 桌面/手机 E2E 覆盖五维、部分数据缺失、完整合成输入、建议不改写行程、owner 隔离、刷新重算、锁定保护；新增 `docs/acceptance/itinerary-checkup.md` 并更新 Capability Map；不宣称分数代表路线安全或真实供应商核实。
+- [x] **验收：** 桌面/手机 E2E 覆盖五维、部分数据缺失、完整合成输入、建议不改写行程、owner 分区沿用已有隔离机制、刷新重算、锁定保护；新增 `docs/acceptance/itinerary-checkup.md` 并更新 Capability Map；不宣称分数代表路线安全或真实供应商核实。
 - **验证：** 前端 Vitest、typecheck、lint、build、全量 Playwright、Secretlint；后端 pytest/Ruff；部署 `/api/health` 200、静态资源 SHA-256 对齐构建产物、生产页面安全登录门检查。
 - **文件：** E2E、验收记录、Capability Map（分阶段）。
-- **交付：** L6 独立提交并推送 GitHub；从该提交构建部署服务器，备份、保留静态目录 inode、验证健康与资源 hash。
+- **交付：** L6 独立提交并推送 GitHub；从提交 `5485d789be718b64a756f331a652de1ed5cdd273` 构建部署服务器，已备份旧产物、保留静态目录 inode、验证 API 健康与资源 hash；发布证据见验收记录。
 - **依赖：** IC-01 至 IC-05。
 
 ## 审批记录

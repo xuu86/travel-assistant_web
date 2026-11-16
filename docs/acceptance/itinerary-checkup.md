@@ -19,9 +19,17 @@
 - Vite production build：通过，输出内容哈希资源。
 - Playwright：桌面 Chromium 与手机 Chromium 全量 56/56 通过；含 L6 缺项与锁定回源测试。
 - 后端 pytest：428 passed；仅有现存 Starlette/httpx 弃用提示。L6 未修改后端。
-- Secretlint：在最终提交前对 `backend/app`、`frontend/src` 与 `frontend/dist` 扫描。
+- Secretlint：对 `backend/app`、`frontend/src` 与 `frontend/dist` 扫描通过，无发现。
 
-Playwright 使用合成数据与 loopback fixture，不调用真实供应商。该记录为发布前本地验收；GitHub 提交、服务器资源哈希、API 健康、静态目录 inode 和 HTTP 登录安全门禁将在独立发布后补录。
+Playwright 使用合成数据与 loopback fixture，不调用真实供应商。
+
+## GitHub 与服务器发布
+
+- GitHub 分支：`feature/itinerary-checkup`；代码提交：`5485d789be718b64a756f331a652de1ed5cdd273`，已推送至 `origin`。后续任务状态/验收记录提交单独更新文档。
+- 从该提交构建的前端资源已部署至 `http://43.143.125.176:18080/`。首页 HTTP 200；`/api/health` HTTP 200，响应 `{"status":"ok","version":"0.1.0"}`。
+- Caddy 静态目录部署前后 inode 均为 `65025:1091679`。旧产物备份：`/opt/travel-assistant/backups/frontend-before-itinerary-checkup-5485d78/frontend-dist.tar.gz`，SHA-256 `b1cd1d8155ba4c766e24201d16b7e3924e9b7d356884b38c35855e580d72f0ca`。
+- 线上 HTML 引用 JS SHA-256 `08cc5db0284490a7e76888bb7e1ec18b77979485bd97fde9d122135cc9266841`、CSS SHA-256 `f510ba8bdbc02a0c4ca34af2d1b4b6471a9af8780508c9754db0341d851f1113`，均与本地提交构建产物及 HTTP 下载字节一致。
+- HTTP 页面 `window.isSecureContext === false`；登录控件保持禁用并回退游客模式。未增加凭据、放宽登录门禁、修改后端环境变量或代理配置。API 服务未因本次部署重启；仅替换静态文件。
 
 ## 边界
 

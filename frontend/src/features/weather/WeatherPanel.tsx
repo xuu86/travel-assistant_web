@@ -303,8 +303,9 @@ export function WeatherPanel({ cityName, state }: WeatherPanelProps) {
                 const headingId = `weather-day-${day.date}`;
                 return (
                   <article className={`weather-day weather-day--${weatherVideoKey(day.weather_code)}`} key={day.date} aria-labelledby={headingId}
-                    data-ledger-source-keys={JSON.stringify(missingWeatherFields.filter(([fieldKey]) => day[fieldKey] === null || day[fieldKey] === undefined)
-                      .map(([fieldKey]) => `weather:forecast:${day.date}:${fieldKey}`))} tabIndex={-1}>
+                    data-ledger-source-keys={JSON.stringify([`weather:forecast:${day.date}`,
+                      ...missingWeatherFields.filter(([fieldKey]) => day[fieldKey] === null || day[fieldKey] === undefined)
+                        .map(([fieldKey]) => `weather:forecast:${day.date}:${fieldKey}`)])} tabIndex={-1}>
                     <div className="weather-day__topline">
                       <time dateTime={day.date}>{formatDate(day.date)}</time>
                       <span className="weather-day__code">{day.weather_code ?? "—"}</span>

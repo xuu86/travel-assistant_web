@@ -68,7 +68,7 @@ export function UnknownLedgerPanel({ departureDate, onOpenSource }: {
         {[...grouped.entries()].map(([date, items]) => <section className="unknown-ledger__group" key={date} aria-labelledby={`unknown-ledger-date-${date}`}>
           <h2 id={`unknown-ledger-date-${date}`} className="unknown-ledger__date">{date}<span>{items.length} 项</span></h2>
           <ul className="unknown-ledger__list">
-            {items.map((item) => <li className="unknown-ledger__item" key={item.source_key}>
+            {items.map((item) => <li className="unknown-ledger__item" key={item.source_key} data-ledger-source-keys={JSON.stringify([item.source_key])} tabIndex={-1}>
               <div className="unknown-ledger__main">
                 <div className="unknown-ledger__title-row">
                   <h3>{item.subject}</h3>

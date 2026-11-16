@@ -5,6 +5,9 @@
 .itinerary-eyebrow, .itinerary-step { margin: 0 0 10px; color: var(--rust); font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .1em; }
 .itinerary-session-note { padding: 8px 11px; border: 1px solid var(--navy); border-left: 4px solid var(--navy); background: var(--teal-pale); color: #1C91C1; font-size: 12px; }
 .itinerary-destination { margin: 18px 0 0; color: var(--ink-soft); font-size: 13px; }
+.itinerary-checkup-entry { display: flex; justify-content: flex-end; margin-top: 14px; }
+.itinerary-checkup-entry button { min-height: 42px; padding: 0 14px; border: 1px solid var(--navy); border-radius: var(--radius); background: var(--teal-pale); color: var(--navy); font-weight: 700; cursor: pointer; }
+.itinerary-checkup-entry button:hover { background: var(--white); }
 .itinerary-block { padding: 28px 0 30px; border-bottom: 1px solid var(--line); }
 .itinerary-block__heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
 .itinerary-block__heading h2 { margin: 0; font-family: var(--font-display); font-size: 24px; letter-spacing: 0; }
@@ -24,6 +27,9 @@
 .itinerary-fields input:hover, .itinerary-fields select:hover { border-color: var(--navy-3); }
 .itinerary-fields input:focus-visible, .itinerary-fields select:focus-visible { border-color: var(--rust); }
 .itinerary-fields small { color: var(--ink-faint); font-weight: 400; }
+.itinerary-checkup-fields { margin-top: 16px; border-top: 1px solid var(--line-soft); }
+.itinerary-checkup-fields summary { width: fit-content; min-height: 44px; padding: 12px 0; color: var(--navy); font-size: 13px; font-weight: 700; cursor: pointer; }
+.itinerary-fields--checkup { padding: 8px 0 4px; }
 .itinerary-form-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .itinerary-submit {
   min-height: 46px;

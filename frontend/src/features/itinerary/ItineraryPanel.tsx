@@ -5,26 +5,62 @@ import { EvidencePassport } from "../../shared/EvidencePassport";
 import { usePersistentState } from "../local-storage/useWorkspacePersistence";
 import { useLedgerSource } from "../unknown-ledger/context";
 import type { LedgerObservation } from "../unknown-ledger/model";
+import type { ActivityEnvironment, OptionalCheckupFields } from "../itinerary-checkup/types";
+import { ItineraryCheckup } from "../itinerary-checkup/ItineraryCheckup";
+import type { WeatherPanelState } from "../weather/WeatherPanel";
 import "./itinerary-panel.css";
 
 type ItineraryEvidence = { displayName: string; evidenceState: "user_provided" | "unknown"; recordedAt?: string };
-type ItineraryItem = { id: string; date: string; time: string; title: string; note: string; locked: boolean; completed: boolean; evidence?: ItineraryEvidence };
+type ItineraryItem = { id: string; date: string; time: string; title: string; note: string; locked: boolean; completed: boolean; evidence?: ItineraryEvidence } & OptionalCheckupFields;
+type ItineraryDraft = Omit<ItineraryItem, "stayMinutes" | "transitMinutes" | "walkKm" | "stairSteps" | "transfers"> & {
+  stayMinutes: number | string | null;
+  transitMinutes: number | string | null;
+  walkKm: number | string | null;
+  stairSteps: number | string | null;
+  transfers: number | string | null;
+};
 
 /** 小机器人随机添加的一项安排 */
 export type InjectedItinerary = { token: number; title: string; time: string; note: string };
 
-function newItem(date: string): ItineraryItem {
+const optionalNumberBounds = {
+  stayMinutes: { max: 1440, label: "停留分钟" },
+  transitMinutes: { max: 1440, label: "下一段通行分钟" },
+  walkKm: { max: 100, label: "步行公里" },
+  stairSteps: { max: 50000, label: "台阶数" },
+  transfers: { max: 100, label: "换乘次数" },
+} as const;
+type OptionalNumberKey = keyof typeof optionalNumberBounds;
+
+function newItem(date: string): ItineraryDraft {
   return {
     id: createDraftId(), date, time: "09:00", title: "", note: "", locked: false, completed: false,
     evidence: { displayName: "用户手动录入", evidenceState: "user_provided", recordedAt: new Date().toISOString() },
+    stayMinutes: null, transitMinutes: null, environment: "unknown", walkKm: null, stairSteps: null, transfers: null,
   };
 }
 
-export function ItineraryPanel({ destinationName, startDate, endDate, injectedItem }: { destinationName: string; startDate: string; endDate: string; injectedItem?: InjectedItinerary | null }) {
+function parseOptionalNumber(value: number | string | null | undefined, key: OptionalNumberKey): number | null {
+  if (value === null || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > optionalNumberBounds[key].max ||
+      (key !== "walkKm" && !Number.isInteger(parsed))) return null;
+  return parsed;
+}
+
+function optionalNumberText(value: number | string | null | undefined): string {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+export function ItineraryPanel({ destinationName, startDate, endDate, injectedItem, weatherState = { status: "unconfigured" }, onFocusSource = () => undefined }: {
+  destinationName: string; startDate: string; endDate: string; injectedItem?: InjectedItinerary | null;
+  weatherState?: WeatherPanelState; onFocusSource?: (sourceKey: string) => void;
+}) {
   const [items, setItems] = usePersistentState<ItineraryItem[]>("itinerary.items", []);
-  const [draft, setDraft] = usePersistentState("itinerary.draft", () => newItem(startDate));
+  const [draft, setDraft] = usePersistentState<ItineraryDraft>("itinerary.draft", () => newItem(startDate));
   const [editingId, setEditingId] = usePersistentState<string | null>("itinerary.editing-id", null);
   const [error, setError] = useState<string | null>(null);
+  const [checkupOpen, setCheckupOpen] = useState(false);
   const ledgerObservations = useMemo<LedgerObservation[]>(() => items.map((item) => ({
     source_key: `itinerary:${item.id}:arrangement`,
     module: "itinerary",
@@ -83,8 +119,29 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
       setError("该安排已锁定或已不存在，请解锁后重新编辑。");
       return;
     }
-    const updated = {
+    const numericKeys = Object.keys(optionalNumberBounds) as OptionalNumberKey[];
+    const invalidValue = numericKeys.find((key) => {
+      const raw = draft[key];
+      if (raw === "" || raw === null || raw === undefined) return false;
+      const value = Number(raw);
+      return !Number.isFinite(value) || value < 0 || value > optionalNumberBounds[key].max ||
+        (key !== "walkKm" && !Number.isInteger(value));
+    });
+    if (invalidValue) {
+      setError(`${optionalNumberBounds[invalidValue].label}不能为负数，且需在有效范围内。`);
+      return;
+    }
+    const checkupValues: Required<Pick<OptionalCheckupFields, "stayMinutes" | "transitMinutes" | "walkKm" | "stairSteps" | "transfers">> = {
+      stayMinutes: parseOptionalNumber(draft.stayMinutes, "stayMinutes"),
+      transitMinutes: parseOptionalNumber(draft.transitMinutes, "transitMinutes"),
+      walkKm: parseOptionalNumber(draft.walkKm, "walkKm"),
+      stairSteps: parseOptionalNumber(draft.stairSteps, "stairSteps"),
+      transfers: parseOptionalNumber(draft.transfers, "transfers"),
+    };
+    const updated: ItineraryItem = {
       ...draft,
+      ...checkupValues,
+      environment: draft.environment ?? "unknown",
       date: draftDate,
       locked: currentItem?.locked ?? false,
       completed: currentItem?.completed ?? false,
@@ -104,7 +161,7 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
   function removeItem(id: string) { setItems((current) => current.filter((item) => item.id !== id || item.locked)); }
   function toggleLock(id: string) { setItems((current) => current.map((item) => item.id === id ? { ...item, locked: !item.locked } : item)); }
   function toggleCompleted(id: string) { setItems((current) => current.map((item) => item.id === id ? { ...item, completed: !item.completed } : item)); }
-  function editItem(item: ItineraryItem) { setDraft({ ...item }); setEditingId(item.id); setError(null); }
+  function editItem(item: ItineraryItem) { setDraft({ ...newItem(item.date), ...item }); setEditingId(item.id); setError(null); }
   function cancelEdit() { setDraft(newItem(dates[0] ?? startDate)); setEditingId(null); setError(null); }
 
   const groupedItems = [...new Set(items.map((item) => item.date))].sort().map((date) => ({
@@ -119,6 +176,12 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
       <span className="itinerary-session-note">仅保存在此浏览器</span>
     </header>
     <p className="itinerary-destination">目的地：<strong>{destinationName}</strong> · 日期：{startDate} 至 {endDate}</p>
+    <div className="itinerary-checkup-entry">
+      <button type="button" aria-expanded={checkupOpen} aria-controls="itinerary-checkup-report" onClick={() => setCheckupOpen((open) => !open)}>
+        {checkupOpen ? "收起行程体检" : "查看行程体检"}
+      </button>
+    </div>
+    {checkupOpen && <div id="itinerary-checkup-report"><ItineraryCheckup items={items} startDate={startDate} weatherState={weatherState} onFocusSource={onFocusSource} /></div>}
     <section className="itinerary-guide" aria-labelledby="itinerary-guide-title">
       <div className="itinerary-guide__head">
         <p className="itinerary-step">READ ME</p>
@@ -139,6 +202,17 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
           <label className="itinerary-title-field"><span>安排名称</span><input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="例如：外滩散步" /></label>
           <label className="itinerary-note-field"><span>备注 <small>可选</small></span><input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="集合点、预留时间等" /></label>
         </div>
+        <details className="itinerary-checkup-fields">
+          <summary>体检数据（可选）</summary>
+          <div className="itinerary-fields itinerary-fields--checkup">
+            <label><span>停留分钟</span><input aria-label="停留分钟" type="number" min="0" max="1440" step="1" inputMode="numeric" value={optionalNumberText(draft.stayMinutes)} onChange={(e) => setDraft({ ...draft, stayMinutes: e.target.value })} /></label>
+            <label><span>下一段通行分钟</span><input aria-label="下一段通行分钟" type="number" min="0" max="1440" step="1" inputMode="numeric" value={optionalNumberText(draft.transitMinutes)} onChange={(e) => setDraft({ ...draft, transitMinutes: e.target.value })} /></label>
+            <label><span>环境</span><select aria-label="环境" value={draft.environment ?? "unknown"} onChange={(e) => setDraft({ ...draft, environment: e.target.value as ActivityEnvironment })}><option value="unknown">未知</option><option value="indoor">室内</option><option value="outdoor">户外</option></select></label>
+            <label><span>步行公里</span><input aria-label="步行公里" type="number" min="0" max="100" step="0.1" inputMode="decimal" value={optionalNumberText(draft.walkKm)} onChange={(e) => setDraft({ ...draft, walkKm: e.target.value })} /></label>
+            <label><span>台阶数</span><input aria-label="台阶数" type="number" min="0" max="50000" step="1" inputMode="numeric" value={optionalNumberText(draft.stairSteps)} onChange={(e) => setDraft({ ...draft, stairSteps: e.target.value })} /></label>
+            <label><span>换乘次数</span><input aria-label="换乘次数" type="number" min="0" max="100" step="1" inputMode="numeric" value={optionalNumberText(draft.transfers)} onChange={(e) => setDraft({ ...draft, transfers: e.target.value })} /></label>
+          </div>
+        </details>
         {error && <p className="itinerary-error" role="alert">{error}</p>}
         <div className="itinerary-form-actions"><button className="itinerary-submit" type="submit">{editingId ? "保存修改" : "添加到行程"}</button>{editingId && <button className="itinerary-cancel" type="button" onClick={cancelEdit}>取消编辑</button>}</div>
       </section>
@@ -146,7 +220,7 @@ export function ItineraryPanel({ destinationName, startDate, endDate, injectedIt
     <section className="itinerary-block itinerary-list-block" aria-labelledby="itinerary-list-title">
       <div className="itinerary-block__heading"><div><p className="itinerary-step">02 / AGENDA</p><h2 id="itinerary-list-title">我的安排</h2></div><p>{items.length ? `${items.length} 项安排` : "还没有安排"}</p></div>
       {outOfRangeCount > 0 && <p className="itinerary-range-warning" role="status">旅行日期已调整；有 {outOfRangeCount} 项安排在日期范围外。安排已保留，请编辑日期或调整旅行日期。</p>}
-      {items.length === 0 ? <p className="itinerary-empty">先添加第一项安排，行程会按日期和时间排列。</p> : <div className="itinerary-days">{groupedItems.map(({ date, items: dayItems }) => <section className="itinerary-day" key={date} aria-labelledby={`itinerary-day-${date}`}><h3 id={`itinerary-day-${date}`} className="itinerary-day__heading">{date}<span>{dayItems.length} 项</span></h3><div className="itinerary-list">{dayItems.map((item) => <article className={`itinerary-item${item.locked ? " is-locked" : ""}${item.completed ? " is-completed" : ""}`} key={item.id} data-ledger-source-keys={JSON.stringify([`itinerary:${item.id}:arrangement`])} tabIndex={-1}><div className="itinerary-item__time"><strong>{item.time}</strong></div><div className="itinerary-item__body"><h4>{item.title}</h4>{item.note && <p>{item.note}</p>}{item.locked && <span className="itinerary-locked">已锁定</span>}{item.completed && <span className="itinerary-completed-label">已完成</span>}{!dates.includes(item.date) && <span className="itinerary-range-label">超出旅行日期</span>}<EvidencePassport source={{ display_name: item.evidence?.displayName ?? "用户手动录入（旧数据未记录来源时间）", retrieved_at: item.evidence?.recordedAt ?? null, evidence_state: item.evidence?.evidenceState ?? "user_provided" }} subject={`行程安排：${item.title}`} /></div><div className="itinerary-item__actions"><button type="button" onClick={() => toggleCompleted(item.id)}>{item.completed ? "撤销完成" : "已完成"}</button><button type="button" onClick={() => editItem(item)} disabled={item.locked} aria-label={`编辑 ${item.title}`}>编辑</button><button type="button" onClick={() => toggleLock(item.id)}>{item.locked ? "解锁" : "锁定"}</button><button type="button" onClick={() => removeItem(item.id)} disabled={item.locked}>删除</button></div></article>)}</div></section>)}</div>}
+      {items.length === 0 ? <p className="itinerary-empty">先添加第一项安排，行程会按日期和时间排列。</p> : <div className="itinerary-days">{groupedItems.map(({ date, items: dayItems }) => <section className="itinerary-day" key={date} aria-labelledby={`itinerary-day-${date}`}><h3 id={`itinerary-day-${date}`} className="itinerary-day__heading">{date}<span>{dayItems.length} 项</span></h3><div className="itinerary-list">{dayItems.map((item) => <article className={`itinerary-item${item.locked ? " is-locked" : ""}${item.completed ? " is-completed" : ""}`} key={item.id} data-ledger-source-keys={JSON.stringify([`itinerary:${item.id}:arrangement`])} data-stay-minutes={item.stayMinutes ?? ""} data-transit-minutes={item.transitMinutes ?? ""} data-environment={item.environment ?? "unknown"} data-walk-km={item.walkKm ?? ""} data-stair-steps={item.stairSteps ?? ""} data-transfers={item.transfers ?? ""} tabIndex={-1}><div className="itinerary-item__time"><strong>{item.time}</strong></div><div className="itinerary-item__body"><h4>{item.title}</h4>{item.note && <p>{item.note}</p>}{item.locked && <span className="itinerary-locked">已锁定</span>}{item.completed && <span className="itinerary-completed-label">已完成</span>}{!dates.includes(item.date) && <span className="itinerary-range-label">超出旅行日期</span>}<EvidencePassport source={{ display_name: item.evidence?.displayName ?? "用户手动录入（旧数据未记录来源时间）", retrieved_at: item.evidence?.recordedAt ?? null, evidence_state: item.evidence?.evidenceState ?? "user_provided" }} subject={`行程安排：${item.title}`} /></div><div className="itinerary-item__actions"><button type="button" onClick={() => toggleCompleted(item.id)}>{item.completed ? "撤销完成" : "已完成"}</button><button type="button" onClick={() => editItem(item)} disabled={item.locked} aria-label={`编辑 ${item.title}`}>编辑</button><button type="button" onClick={() => toggleLock(item.id)}>{item.locked ? "解锁" : "锁定"}</button><button type="button" onClick={() => removeItem(item.id)} disabled={item.locked}>删除</button></div></article>)}</div></section>)}</div>}
       <p className="itinerary-source-note">行程内容来自你的手动输入；本模块不自动生成景点推荐、不连接订票或地图服务。</p>
     </section>
   </section>;

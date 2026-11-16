@@ -25,7 +25,7 @@ describe("ItineraryPanel", () => {
     render(<ItineraryPanel destinationName="杭州" startDate="2026-10-27" endDate="2026-10-29" />);
     fireEvent.click(screen.getByRole("button", { name: "添加到行程" }));
     expect(screen.getByRole("alert")).toHaveTextContent("请填写安排名称");
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["2026-10-27", "2026-10-28", "2026-10-29"]);
+    expect(Array.from(screen.getByLabelText("日期").querySelectorAll("option")).map((option) => option.textContent)).toEqual(["2026-10-27", "2026-10-28", "2026-10-29"]);
   });
 
   it("groups items by date, marks them complete, and edits existing items", () => {
@@ -92,5 +92,51 @@ describe("ItineraryPanel", () => {
     fireEvent.change(screen.getByLabelText("日期"), { target: { value: "2026-10-29" } });
     fireEvent.click(screen.getByRole("button", { name: "保存修改" }));
     expect(screen.getByRole("heading", { name: "编辑中的安排" })).toBeVisible();
+  });
+
+  it("saves optional checkup fields as user-provided values and restores them when editing", () => {
+    render(<ItineraryPanel destinationName="上海" startDate="2026-10-27" endDate="2026-10-28" />);
+    fireEvent.change(screen.getByLabelText("安排名称"), { target: { value: "博物馆" } });
+    fireEvent.change(screen.getByLabelText("停留分钟"), { target: { value: "90" } });
+    fireEvent.change(screen.getByLabelText("下一段通行分钟"), { target: { value: "25" } });
+    fireEvent.change(screen.getByLabelText("环境"), { target: { value: "outdoor" } });
+    fireEvent.change(screen.getByLabelText("步行公里"), { target: { value: "3.5" } });
+    fireEvent.change(screen.getByLabelText("台阶数"), { target: { value: "120" } });
+    fireEvent.change(screen.getByLabelText("换乘次数"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加到行程" }));
+
+    const item = screen.getByRole("heading", { name: "博物馆" }).closest("article");
+    expect(item).toHaveAttribute("data-stay-minutes", "90");
+    expect(item).toHaveAttribute("data-transit-minutes", "25");
+    expect(item).toHaveAttribute("data-environment", "outdoor");
+    expect(item).toHaveAttribute("data-walk-km", "3.5");
+    expect(item).toHaveAttribute("data-stair-steps", "120");
+    expect(item).toHaveAttribute("data-transfers", "2");
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑 博物馆" }));
+    expect(screen.getByLabelText("停留分钟")).toHaveValue(90);
+    expect(screen.getByLabelText("下一段通行分钟")).toHaveValue(25);
+    expect(screen.getByLabelText("环境")).toHaveValue("outdoor");
+    expect(screen.getByLabelText("步行公里")).toHaveValue(3.5);
+    expect(screen.getByLabelText("台阶数")).toHaveValue(120);
+    expect(screen.getByLabelText("换乘次数")).toHaveValue(2);
+  });
+
+  it("rejects negative checkup measurements and treats legacy fields as unknown", () => {
+    render(<ItineraryPanel destinationName="上海" startDate="2026-10-27" endDate="2026-10-28" />);
+    fireEvent.change(screen.getByLabelText("安排名称"), { target: { value: "旧安排" } });
+    fireEvent.change(screen.getByLabelText("步行公里"), { target: { value: "-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加到行程" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("不能为负数");
+    expect(screen.queryByRole("heading", { name: "旧安排" })).not.toBeInTheDocument();
+  });
+
+  it("opens the read-only checkup and labels unsupported dimensions as insufficient", () => {
+    render(<ItineraryPanel destinationName="上海" startDate="2026-10-27" endDate="2026-10-28" />);
+    fireEvent.click(screen.getByRole("button", { name: "查看行程体检" }));
+    expect(screen.getByRole("heading", { name: "行程体检" })).toBeVisible();
+    expect(screen.getByText("综合分：数据不足")).toBeVisible();
+    expect(screen.getAllByText("数据不足").length).toBeGreaterThanOrEqual(5);
+    expect(screen.getByText(/只读分析/)).toBeVisible();
   });
 });

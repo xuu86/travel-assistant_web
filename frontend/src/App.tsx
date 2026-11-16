@@ -996,7 +996,15 @@ export function App() {
             </div>
             <div className="workspace-view" hidden={activeView !== "budget"} key={`budget-${workspaceKey}`}><BudgetPanel destinationName={destination.name} injectedCost={injectedCost} /></div>
             <div className="workspace-view" hidden={activeView !== "transport"} key={`transport-${workspaceKey}`}><TransportPanel key={workspaceKey} initialDestination={destination.name} initialOrigin={originPlace} originLocationStatus={originLocationStatus} /></div>
-            <div className="workspace-view" hidden={activeView !== "itinerary"} key={`itinerary-${workspaceKey}`}><ItineraryPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} injectedItem={injectedItinerary} /></div>
+            <div className="workspace-view" hidden={activeView !== "itinerary"} key={`itinerary-${workspaceKey}`}><ItineraryPanel destinationName={destination.name} startDate={tripStartDate} endDate={tripEndDate} injectedItem={injectedItinerary} weatherState={weatherState} onFocusSource={(sourceKey) => {
+              const module = sourceKey.split(":")[0] as LedgerModule;
+              setLedgerSourceToFocus(sourceKey);
+              if (module === "itinerary" || module === "budget" || (module === "weather" && sourceKey.startsWith("weather:forecast:"))) {
+                setActiveView(module);
+              } else {
+                setActiveView("unknown-ledger");
+              }
+            }} /></div>
             <div className="workspace-view" hidden={activeView !== "unknown-ledger"} key={`unknown-ledger-${workspaceKey}`}>
               <UnknownLedgerPanel departureDate={tripStartDate} onOpenSource={(module: LedgerModule, sourceKey: string) => {
                 setLedgerSourceToFocus(sourceKey);

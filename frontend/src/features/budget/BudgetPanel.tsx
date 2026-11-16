@@ -260,7 +260,7 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
             <p>未设置与明确填写 0 元含义不同</p>
           </div>
           <div className="budget-top-fields">
-            <label className="budget-field">
+            <label className="budget-field" data-ledger-source-keys={JSON.stringify(["budget:budget-total"])} tabIndex={-1}>
               <span>整趟总预算</span>
               <span className="budget-input-wrap">
                 <span aria-hidden="true">¥</span>
@@ -311,6 +311,7 @@ export function BudgetPanel({ destinationName, injectedCost }: { destinationName
             {costs.length === 0 && <p className="cost-empty">还没有费用项。可先添加已知的交通、住宿或其他费用。</p>}
             {costs.map((cost, index) => (
               <fieldset className="cost-row" key={cost.id} data-ledger-source-keys={JSON.stringify([
+                `budget:${cost.id}:paid`, `budget:${cost.id}:unpaid`,
                 ...(cost.paid.trim() === "" ? [`budget:${cost.id}:paid`] : []),
                 ...(cost.unpaid.trim() === "" ? [`budget:${cost.id}:unpaid`] : []),
               ])} tabIndex={-1}>

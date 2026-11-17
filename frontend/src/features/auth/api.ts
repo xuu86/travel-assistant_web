@@ -50,6 +50,16 @@ export async function login(input: LoginInput): Promise<AuthIdentity> {
   return await response.json() as AuthIdentity;
 }
 
+export async function register(input: LoginInput): Promise<void> {
+  const response = await fetch("/api/v1/auth/register", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw await readError(response);
+}
+
 export async function logout(): Promise<void> {
   const response = await fetch("/api/v1/auth/logout", {
     method: "POST",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi import status as http_status
@@ -9,7 +10,7 @@ from fastapi import status as http_status
 from app.core.config import Settings
 from app.core.contracts import ErrorCode
 from app.core.errors import ServiceError
-from app.modules.auth.contracts import IdentityResponse, LoginRequest
+from app.modules.auth.contracts import IdentityResponse, LoginRequest, RegisterRequest
 from app.modules.auth.service import SESSION_TTL_SECONDS, AuthService, SessionIdentity
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -33,6 +34,12 @@ def _check_same_origin(request: Request) -> None:
     host = request.headers.get("host")
     expected = f"{request.url.scheme}://{host}" if host else ""
     if not origin or not hmac.compare_digest(origin, expected):
+        raise ServiceError(ErrorCode.FORBIDDEN)
+    parsed = urlsplit(origin)
+    allowed_local_hosts = {"localhost", "127.0.0.1", "::1"}
+    if request.app.state.settings.env == "test":
+        allowed_local_hosts.add("testserver")
+    if parsed.scheme != "https" and parsed.hostname not in allowed_local_hosts:
         raise ServiceError(ErrorCode.FORBIDDEN)
 
 
@@ -80,6 +87,15 @@ def login(
     token, identity = service.authenticate(payload.username, payload.password, client_host)
     _set_session_cookie(response, token, settings)
     return _account_response(identity)
+
+
+@router.post("/register", status_code=http_status.HTTP_201_CREATED)
+def register(payload: RegisterRequest, request: Request, service: AuthServiceDep) -> dict[str, str]:
+    _check_same_origin(request)
+    client_host = request.client.host if request.client else "unknown"
+    if not service.register(payload.username, payload.password, client_host):
+        raise ServiceError(ErrorCode.VALIDATION_ERROR)
+    return {"status": "created"}
 
 
 @router.post("/logout", status_code=http_status.HTTP_204_NO_CONTENT)

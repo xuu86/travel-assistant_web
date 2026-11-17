@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "./auth-context";
+import { register } from "./api";
 import "./auth.css";
 
 export function LoginDialog() {
@@ -8,6 +9,7 @@ export function LoginDialog() {
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -30,6 +32,7 @@ export function LoginDialog() {
     setBusy(true);
     setFormError(null);
     try {
+      if (creating) await register({ username, password });
       await login({ username, password });
       setPassword("");
       setOpen(false);
@@ -74,7 +77,7 @@ export function LoginDialog() {
     <dialog ref={dialogRef} className="auth-dialog" aria-labelledby="auth-dialog-title" onCancel={() => setOpen(false)} onClose={() => setOpen(false)}>
       <form className="auth-dialog__form" onSubmit={(event) => void submit(event)}>
         <div className="auth-dialog__heading">
-          <div><p className="eyebrow">ACCOUNT / SIGN IN</p><h2 id="auth-dialog-title">登录测试账号</h2></div>
+          <div><p className="eyebrow">ACCOUNT</p><h2 id="auth-dialog-title">{creating ? "创建账号" : "登录账号"}</h2></div>
           <button className="auth-dialog__close" type="button" onClick={() => setOpen(false)} aria-label="关闭登录">×</button>
         </div>
         <label className="field">
@@ -83,13 +86,14 @@ export function LoginDialog() {
         </label>
         <label className="field">
           <span className="field__label">密码</span>
-          <input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={1024} disabled={busy} />
+          <input name="password" type="password" autoComplete={creating ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} required minLength={creating ? 12 : 1} maxLength={1024} disabled={busy} />
         </label>
         {(formError ?? error) && <p className="auth-dialog__error" role="alert">{formError ?? error}</p>}
         {!available && <p className="auth-dialog__error" role="status">登录服务暂不可用；仍可继续以游客身份使用。</p>}
         <div className="auth-dialog__actions">
+          <button className="auth-dialog__cancel" type="button" onClick={() => { setCreating(!creating); setFormError(null); setPassword(""); }} disabled={busy}>{creating ? "已有账号，登录" : "创建账号"}</button>
           <button className="auth-dialog__cancel" type="button" onClick={() => setOpen(false)} disabled={busy}>取消</button>
-          <button className="auth-dialog__submit" type="submit" disabled={busy || !available}>{busy ? "正在验证…" : "登录"}</button>
+          <button className="auth-dialog__submit" type="submit" disabled={busy || !available}>{busy ? "请稍候…" : creating ? "创建并登录" : "登录"}</button>
         </div>
       </form>
     </dialog>

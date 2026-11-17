@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from app.core.config import Settings
 from app.core.contracts import ErrorCode
 from app.core.errors import ServiceError
+from app.modules.auth.accounts import AccountStore
 from app.modules.auth.credentials import load_test_accounts, verify_password
 
 SESSION_TTL_SECONDS = 12 * 60 * 60
@@ -27,14 +28,38 @@ class AuthService:
     def __init__(self, settings: Settings) -> None:
         accounts = load_test_accounts(settings.auth_test_accounts)
         self._accounts = {account.username.casefold(): account for account in accounts}
+        self._store = (
+            AccountStore(settings.auth_database_path) if settings.auth_database_path else None
+        )
         self._sessions: dict[str, tuple[SessionIdentity, float]] = {}
         self._failures: dict[str, list[float]] = {}
+        self._registrations: dict[str, list[float]] = {}
         self._limiter_key = secrets.token_bytes(32)
         self._lock = threading.Lock()
 
     @property
     def configured(self) -> bool:
-        return bool(self._accounts)
+        return bool(self._accounts) or self._store is not None
+
+    def register(self, username: str, password: str, client_host: str) -> bool:
+        if self._store is None:
+            raise ServiceError(ErrorCode.UNCONFIGURED)
+        now = time.monotonic()
+        with self._lock:
+            self._registrations = {
+                key: [stamp for stamp in stamps if now - stamp < 3600]
+                for key, stamps in self._registrations.items()
+            }
+            self._registrations = {
+                key: stamps for key, stamps in self._registrations.items() if stamps
+            }
+            attempts = self._registrations.setdefault(client_host, [])
+            if len(attempts) >= 5:
+                raise ServiceError(ErrorCode.RATE_LIMITED)
+            attempts.append(now)
+        if username.casefold() in self._accounts:
+            return False
+        return self._store.create(username, password)
 
     def authenticate(
         self, username: str, password: str, client_host: str
@@ -63,7 +88,9 @@ class AuthService:
             if len(attempts) >= _MAX_FAILED_ATTEMPTS:
                 raise ServiceError(ErrorCode.RATE_LIMITED)
 
-        account = self._accounts.get(normalized)
+        account = self._accounts.get(normalized) or (
+            self._store.get(normalized) if self._store else None
+        )
         valid = verify_password(password, account.password_hash) if account else False
         if not valid or account is None:
             with self._lock:

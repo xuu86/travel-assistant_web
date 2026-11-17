@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     model_api_key: SecretStr | None = None
     model_timeout_seconds: int = Field(default=30, ge=1, le=30)
     auth_test_accounts: SecretStr | None = None
+    auth_database_path: str | None = None
     weather_provider: WeatherProviderName | None = None
     amap_api_key: SecretStr | None = Field(
         default=None, validation_alias=AliasChoices("APP_AMAP_API_KEY", "AMAP_API_KEY")

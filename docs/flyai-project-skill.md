@@ -27,7 +27,15 @@
 & .\backend\.venv\Scripts\python.exe .\backend\scripts\setup_flyai.py
 ```
 
-脚本从 npm 官方 registry 下载固定 1.0.16 包并校验 SHA-512，只写入被 Git 忽略的 `.tools/flyai/`，不执行安装脚本。后端执行前还会校验 bundle SHA-256；禁止直接替换为其他版本。
+脚本从 npm 官方 registry 下载固定 1.0.16 包，校验包 SHA-512、包名/版本及 bundle SHA-256，再以原子替换写入被 Git 忽略的 `.tools/flyai/`，不执行安装脚本。后端执行前也会校验 bundle SHA-256；禁止直接替换为其他版本。
+
+每次生产 release 都必须在**该 release 的仓库根目录**执行安装，再启动或重启后端；不能只在开发机或旧 release 安装，因为 `.tools/flyai/` 不纳入 Git。Linux 示例：
+
+```sh
+backend/.venv/bin/python backend/scripts/setup_flyai.py
+```
+
+确认脚本报告 SHA-512 与 SHA-256 校验通过后再启动服务。这样 bundle 会落在该 release 根目录下的 `.tools/flyai/`，与后端运行时查找路径一致。
 
 在 `backend/.env` 中设置：
 

@@ -8,6 +8,13 @@
 >
 > 范围：已批准的 `SPEC-transport` v0.2、transport 任务 TRN-01 至 TRN-09，以及条件航班 Provider TLP-00 至 TLP-05。**mock/流程验收不代表真实航班、铁路或路线数据已经验收。**
 
+## 2026-11-20 铁路 bundle 发布修复
+
+- 故障原因：FlyAI CLI bundle 位于 Git 忽略的 `.tools/flyai/`，新建 release 不会随源码检出该运行文件；本次线上 release 缺少 bundle，铁路查询因此不可用。仅在既有 release 手工补文件不能保证下次发布仍可用。
+- 修复：`backend/scripts/setup_flyai.py` 现在除验证官方归档 SHA-512 和包身份外，还会校验 bundle SHA-256，并在目标 release 中原子替换安装文件。部署说明已明确要求每次 release 在其仓库根目录运行安装脚本后再启动后端；未将 CLI bundle 或密钥提交到 Git。
+- 线上回归：补入 bundle 后，健康检查 HTTP 200；铁路上海→杭州返回 10 条班次，价格及余票仍未知；公交路线返回 5 条、步行返回 1 条。出租车本次遇到高德 `rate_limited`，未重试，不能据此称出租车路线已恢复。未核验航班。
+- bundle SHA-256：`194a66eb84094f3d8ee20fac0a2d6cae10a405cd59ac100b7e7880ebc97297da`。密钥、上游配置未改动。
+
 ## 2026-11-16 市内路线恢复与线上状态核查
 
 - 恢复市内路线独立入口，支持公交/地铁、步行与驾车/出租车，按起终点保留工作区查询条件；路线以高德 Web Service 返回内容构成方案，并仅将用时标成规划参考，不显示费用。GCJ-02 路线几何不会冒充 WGS84 输出。

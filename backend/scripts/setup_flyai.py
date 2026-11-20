@@ -6,7 +6,9 @@ import base64
 import hashlib
 import io
 import json
+import os
 import tarfile
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -15,6 +17,7 @@ INTEGRITY = (
     "Ksi06xvJSJcdhmfoDbpAnA84K4/pF+SkLsa5ZLvNruUc3e2EpoGaI6FcJXKTODvB/"
     "evprfy5pdRzW3lVazqfkA=="
 )
+BUNDLE_SHA256 = "194a66eb84094f3d8ee20fac0a2d6cae10a405cd59ac100b7e7880ebc97297da"
 DESTINATION = Path(__file__).resolve().parents[2] / ".tools/flyai"
 
 
@@ -39,11 +42,26 @@ def main() -> None:
         metadata = json.loads(selected["package/package.json"])
         if metadata.get("name") != "@fly-ai/flyai-cli" or metadata.get("version") != VERSION:
             raise RuntimeError("CLI package identity mismatch.")
-        for name, body in selected.items():
-            target = DESTINATION / name.removeprefix("package/")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(body)
-    print(f"Official FlyAI CLI {VERSION} installed; SHA-512 verified; no query executed.")
+    bundle = selected["package/dist/flyai-bundle.cjs"]
+    if hashlib.sha256(bundle).hexdigest() != BUNDLE_SHA256:
+        raise RuntimeError("CLI bundle integrity mismatch.")
+
+    DESTINATION.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".flyai-install-", dir=DESTINATION.parent) as temp:
+        staging = Path(temp)
+        staged_metadata = staging / "package.json"
+        staged_bundle = staging / "dist/flyai-bundle.cjs"
+        staged_bundle.parent.mkdir(parents=True)
+        staged_metadata.write_bytes(selected["package/package.json"])
+        staged_bundle.write_bytes(bundle)
+
+        (DESTINATION / "dist").mkdir(parents=True, exist_ok=True)
+        os.replace(staged_metadata, DESTINATION / "package.json")
+        os.replace(staged_bundle, DESTINATION / "dist/flyai-bundle.cjs")
+    print(
+        f"Official FlyAI CLI {VERSION} installed; archive SHA-512 and bundle SHA-256 verified; "
+        "no query executed."
+    )
 
 
 if __name__ == "__main__":
